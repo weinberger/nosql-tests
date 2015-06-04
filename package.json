@@ -1,0 +1,38 @@
+{
+  "name": "nosql-benchmark",
+  "version": "0.1.0",
+  "description": "NoSQL Benchmark Suite",
+  "main": "benchmark.js",
+  "files": [
+    "benchmark.js",
+    "LICENSE",
+    "README.md",
+    "arangodb/",
+    "mongodb/",
+    "neo4j/"
+  ],
+  "scripts": {
+    "lint": "eslint benchmark.js arangodb mongodb neo4j",
+    "data": "gunzip < data/bodies100000.json.gz > data/bodies100000.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/weinberger/TBA"
+  },
+  "author": "Claudius Weinberger <claudius@arangodb.com>",
+  "license": "APACHE-2.0",
+  "bugs": {
+    "url": "https://github.com/weinberger/TBA/issues"
+  },
+  "devDependencies": {
+    "eslint": "^0.22.1"
+  },
+  "dependencies": {
+    "yargs": "^3.9.0",
+    "underscore": "^1.8.3",
+    "arangojs": "^3.8.1",
+    "mongodb": "^2.0.33",
+    "neo4j": "^2.0.0-RC1",
+    "seraph": "^0.11.2"
+  }
+}
