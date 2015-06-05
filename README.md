@@ -1,6 +1,6 @@
 # NoSQL Performance Tests
 
-This repository contains the performance tests described in my blog. Please feel free to improve the various database test drivers. If you see any optimization I have missed, please issue a pull request.
+This repository contains the performance tests described in my [blog](https://www.arangodb.com/2015/06/multi-model-benchmark/). Please feel free to improve the various database test drivers. If you see any optimization I have missed, please issue a pull request.
 
 The files are structured as follows:
 
