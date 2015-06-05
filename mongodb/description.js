@@ -1,6 +1,5 @@
 'use strict';
 
-var _ = require('underscore');
 var MongoClient = require('mongodb').MongoClient;
 
 module.exports = {
@@ -74,24 +73,38 @@ module.exports = {
   },
 
   neighbors2: function (db, collP, collR, id, i, cb) {
-    collR.find({_from: 'P/' + id}).toArray(function (err, result) {
+    collR.find({_from: 'P/' + id}, {_to: true, _id: false}).toArray(function (err, result) {
       if (err) return cb(err);
 
       result = result.map(function (e) { return e._to; });
 
-      collR.find({_from: {$in: result}}).toArray(function (err, result2) {
+      collR.find({_from: {$in: result}}, {_to: true, _id: false}).toArray(function (err, result2) {
         if (err) return cb(err);
 
-        result = result.map(function (e) { return e.substr(2); });
-        result2 = result2.map(function (e) { return e._to.substr(2); });
+        var n = result.length;
+        var result3 = {};
 
-        result2 = _.union(result, result2);
+        for (var i1 = 0; i1 < n; ++i1) {
+          var x1 = result[i1].substr(2);
+          result3[x1] = true;
+        }
 
-        if (result2.indexOf(id) === -1) {
-          cb(null, result2.length);
+        var m = result2.length;
+
+        for (var i2 = 0; i2 < m; ++i2) {
+          var x2 = result2[i2]._to.substr(2);
+
+          if (!result3.hasOwnProperty(x2)) {
+            result3[x2] = true;
+            ++n;
+          }
+        }
+
+        if (result3.hasOwnProperty(id)) {
+          cb(null, n - 1);
         }
         else {
-          cb(null, result2.length - 1);
+          cb(null, n);
         }
       });
     });
