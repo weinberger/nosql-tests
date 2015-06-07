@@ -77,36 +77,26 @@ module.exports = {
       if (err) return cb(err);
 
       result = result.map(function (e) { return e._to; });
+      result.push('P/' + id);
 
-      collR.find({_from: {$in: result}}, {_to: true, _id: false}).toArray(function (err, result2) {
-        if (err) return cb(err);
+      collR.aggregate([
+        {$match: {_from: {$in: result}}},
+        {$group: {_id: null, _to: {$addToSet: '$_to'}}},
+        {$project: {_id: 0, neighbors: {$setUnion: ['$_to', result]}}}]).toArray(function (err, result2) {
+          if (err) return cb(err);
 
-        var n = result.length;
-        var result3 = {};
-
-        for (var i1 = 0; i1 < n; ++i1) {
-          var x1 = result[i1].substr(2);
-          result3[x1] = true;
-        }
-
-        var m = result2.length;
-
-        for (var i2 = 0; i2 < m; ++i2) {
-          var x2 = result2[i2]._to.substr(2);
-
-          if (!result3.hasOwnProperty(x2)) {
-            result3[x2] = true;
-            ++n;
+          if (result2.length === 1) {
+            result2 = result2[0].neighbors;
+            if (result2.indexOf('P/' + id) === -1) {
+              cb(null, result2.length);
+            }
+            else {
+              cb(null, result2.length - 1);
+            }
+          } else {
+            cb(null, 0);
           }
-        }
-
-        if (result3.hasOwnProperty(id)) {
-          cb(null, n - 1);
-        }
-        else {
-          cb(null, n);
-        }
-      });
+        });
     });
   }
 };
