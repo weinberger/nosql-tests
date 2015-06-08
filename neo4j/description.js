@@ -20,9 +20,28 @@ module.exports = {
       module.exports.aggregate(db, coll, function (err, result) {
         if (err) return cb(err);
 
-        console.log('INFO warmup done');
+        var count = 0;
 
-        return cb(null);
+        for (var i = 1; i <= 50; ++i) {
+          for (var j = 51; j <= 100; ++j) {
+            module.exports.shortestPath(db, 'profiles', 'relations',
+                                        {from: String(i), to: String(j)}, i,
+                                        function (err) {
+                                          if (err) return cb(err);
+                                          ++count;
+
+                                          if (count % 100 === 0) {
+                                            console.log('warming up', count);
+                                          }
+
+                                          if (count === 2500) {
+                                            console.log('INFO warmup done');
+
+                                            return cb(null);
+                                          }
+                                        });
+          }
+        }
       });
     });
   },
@@ -140,7 +159,8 @@ module.exports = {
       function (err, result) {
         if (err) return cb(err);
 
-        cb(null, result[0].length);
+        if (result.length === 0) { return cb(null, 0); }
+        else { return cb(null, result[0].length); }
       }
     );
   }
