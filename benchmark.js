@@ -340,7 +340,7 @@ function benchmarkNeighbors(desc, db, resolve, reject) {
 // .............................................................................
 
 function benchmarkNeighbors2(desc, db, resolve, reject) {
-  console.log('INFO executing neighbors 2nd degree for %d elements', neighbors);
+  console.log('INFO executing distinct neighbors of 1st and 2nd degree for %d elements', neighbors);
   var nameP = 'profiles';
   var nameR = 'relations';
 
