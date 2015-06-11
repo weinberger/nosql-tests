@@ -15,37 +15,16 @@ module.exports = {
     cb(db);
   },
 
-  warmup: function (db, cb) {
-    module.exports.getCollection(db, 'profiles', function (err, coll) {
-      if (err) return cb(err);
-
-      module.exports.aggregate(db, coll, function (err, result) {
+ warmup: function (db, cb) {
+    db.cypher({query:'MATCH (:PROFILES)--() return count(*) as count'},
+      function (err, result) {
         if (err) return cb(err);
 
-        var count = 0;
+        console.log('INFO warmup done, relationships '+result.count);
 
-        for (var i = 1; i <= 50; ++i) {
-          for (var j = 51; j <= 100; ++j) {
-            module.exports.shortestPath(db, 'PROFILES', 'RELATIONS',
-                                        {from: String(i), to: String(j)}, i,
-                                        function (err) {
-                                          if (err) return cb(err);
-                                          ++count;
-
-                                          if (count % 100 === 0) {
-                                            console.log('warming up', count);
-                                          }
-
-                                          if (count === 2500) {
-                                            console.log('INFO warmup done');
-
-                                            return cb(null);
-                                          }
-                                        });
-          }
-        }
-      });
-    });
+        cb(null);
+      }
+    );
   },
 
   getCollection: function (db, name, cb) {
@@ -64,7 +43,7 @@ module.exports = {
 
   getDocument: function (db, coll, id, cb) {
     db.cypher({query: 'MATCH (f:' + coll + ' {_key:{key}}) RETURN f',
-               params: {key: 'P/' + id},
+               params: {key: id},
                headers: {Connection: 'keep-alive'},
                lean: true}, cb);
   },
@@ -90,7 +69,7 @@ module.exports = {
 
   neighbors: function (db, collP, collR, id, i, cb) {
     db.cypher({query: 'MATCH (s:' + collP + ' {_key:{key}})-->(n:' + collP + ') RETURN n._key',
-               params: {key: 'P/' + id},
+               params: {key: id},
                headers: {Connection: 'keep-alive'},
                lean: true},
 
@@ -105,7 +84,7 @@ module.exports = {
   neighbors2: function (db, collP, collR, id, i, cb) {
     db.cypher({query: 'MATCH (s:' + collP + ' {_key:{key}})-[*1..2]->(n:'
                       + collP + ') RETURN DISTINCT n._key',
-               params: {key: 'P/' + id},
+               params: {key: id},
                headers: {Connection: 'keep-alive'},
                lean: true},
 
@@ -119,7 +98,7 @@ module.exports = {
                   result = result.map(function (x) { return x['n._key']; });
                 }
 
-                if (result.indexOf('P/' + id) === -1) {
+                if (result.indexOf(id) === -1) {
                   cb(null, result.length);
                 }
                 else {
@@ -131,7 +110,7 @@ module.exports = {
   shortestPath: function (db, collP, collR, path, i, cb) {
     db.cypher({query: 'MATCH (s:' + collP + ' {_key:{from}}),(t:'
                       + collP + ' {_key:{to}}), p = shortestPath((s)-[*..15]->(t)) RETURN p',
-               params: {from: 'P/' + path.from, to: 'P/' + path.to},
+               params: {from: path.from, to: path.to},
                headers: {Connection: 'keep-alive'},
                lean: true},
 
