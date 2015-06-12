@@ -124,7 +124,12 @@ desc.startup(host, function (db) {
 
     if (test === 'warmup') {
       testRuns.push(function (resolve, reject) {
-        desc.warmup(db, function (err) {if (err) return reject(err); return resolve();});
+        var start = Date.now();
+        desc.warmup(db, function (err) {
+		      if (err) return reject(err);
+		      reportResult(desc.name, 'warmup', 0, Date.now() - start);
+		      return resolve();
+		    });
       });
     }
     else if (test === 'singleRead') {
