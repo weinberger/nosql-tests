@@ -1,6 +1,7 @@
 'use strict';
 
-var Oriento = require('oriento');
+var OrientDB = require('orientjs');
+var Promise = require('bluebird');
 
 function capitalize(a) {
   return a.replace(/(^|\s|_)([a-z])/g, function (m, p1, p2) {return p1 + p2.toUpperCase();});
@@ -31,20 +32,37 @@ module.exports = {
   name: 'OrientDB',
 
   startup: function (host, cb) {
+    var dbPromise = [];
     for (var i = 0; i < serversMax; ++i) {
-      var server = Oriento({
-	host: host,
+      var server = OrientDB({
+	    host: host,
         port: 2424,
         username: 'root',
         password: 'abc'
       });
-
-      serversConn.push(server.use('pokec'));
+      var db = server.use( {
+        name  : 'pokec'
+      });
+      dbPromise.push(db.open("admin","admin"));  
     }
-
-    cb(nextServer);
+    Promise.all(dbPromise).then(function(dbs){
+      dbs.forEach(function(d){
+        serversConn.push(d);
+      })
+      cb(nextServer);
+    })
   },
-
+  initClass : function(db,cb){
+    var classPromise = [];
+    for(var conn in serversConn){
+      classPromise.push(serversConn[conn].class.list());
+    }
+    Promise.all(classPromise).then(function(){
+      cb();
+    }).catch(function(e){
+      cb(e)
+    })
+  },
   warmup: function (db, cb) {
     module.exports.getCollection(db, 'profiles', function (err, coll) {
       if (err) return cb(err);
@@ -75,7 +93,9 @@ module.exports = {
     name = orientName(name);
 
     db().query('create class ' + name)
-    .then(function () {cb();})
+    .then(function () {
+      module.exports.initClass(db,cb);
+    })
     .catch(function (err) {cb(err);});
   },
 
@@ -87,12 +107,13 @@ module.exports = {
   },
 
   saveDocument: function (db, coll, doc, cb) {
-    if (doc.children < 1) doc.children = 0; // why? OrientDB gives an unmarshalling error for 1e-10
-
-    db().query('insert into ' + coll + ' content :body',
-             {params: {body: doc}})
-    .then(function (result) {cb(null, result);})
-    .catch(function (err) {cb(err);});
+    db().class.get(coll).then(function (klass) {
+      klass.create(doc).then(function(rec) {
+        cb(null,rec);
+      }).catch(function(e){
+        cb(e);
+      })
+    })
   },
 
   aggregate: function (db, coll, cb) {
@@ -102,13 +123,13 @@ module.exports = {
   },
 
   neighbors: function (db, collP, collR, id, i, cb) {
-    db().query('select out()._key from ' + collP + ' where _key=:key', {params: {key: id}, limit: 1000})
-    .then(function (result) {cb(null, result[0].out.length);})
+    db().query('select out_Relationship._key as out from ' + collP + ' where _key=:key', {params: {key: id}, limit: 1000})
+    .then(function (result) {cb(null, result[0].out ? result[0].out.length : 0);})
     .catch(function (err) {cb(err);});
   },
 
   neighbors2: function (db, collP, collR, id, i, cb) {
-   db().query('SELECT set(out()._key, out().out()._key) FROM ' + collP + ' WHERE _key = :key', {params: {key: id}})
+   db().query('SELECT set(out_Relationship._key, out_Relationship.out_Relationship._key) FROM ' + collP + ' WHERE _key = :key', {params: {key: id}})
    .then(function (result) {
            var count = 0;
            var seen = {};
