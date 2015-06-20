@@ -51,12 +51,20 @@ module.exports = {
     db.createCollection(name, cb);
   },
 
+  createCollectionSync: function (db, name, cb) {
+    db.createCollection(name, cb);
+  },
+
   getDocument: function (db, coll, id, cb) {
     coll.findOne({_id: id}, cb);
   },
 
   saveDocument: function (db, coll, doc, cb) {
     coll.insert(doc, {w: 1}, cb);
+  },
+
+  saveDocumentSync: function (db, coll, doc, cb) {
+    coll.insert(doc, {w: 1, j: true}, cb);
   },
 
   aggregate: function (db, coll, cb) {

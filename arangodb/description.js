@@ -51,11 +51,19 @@ module.exports = {
     db.createCollection(name, cb);
   },
 
+  createCollectionSync: function (db, name, cb) {
+    db.createCollection({name: name, waitForSync: true}, cb);
+  },
+
   getDocument: function (db, coll, id, cb) {
     coll.document(id, cb);
   },
 
   saveDocument: function (db, coll, doc, cb) {
+    coll.save(doc, cb);
+  },
+
+  saveDocumentSync: function (db, coll, doc, cb) {
     coll.save(doc, cb);
   },
 
@@ -106,7 +114,8 @@ module.exports = {
         result.all(function (err, v) {
           if (err) return cb(err);
 
-          cb(null, (v[0].p.vertices.length - 1));
+          var p = v[0].p;
+          cb(null, (p === null) ? 0 : (p.vertices.length - 1));
         });
       }
     );

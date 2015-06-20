@@ -11,6 +11,7 @@ function orientName(name) {
 
   if (name === 'Profiles') name = 'Profile';
   if (name === 'Profiles_Temp') name = 'Profile_Temp';
+  if (name === 'Relations') name = 'Relation';
 
   return name;
 }
@@ -19,7 +20,7 @@ var serversConn = [];
 var serversNext = 0;
 var serversMax = 25;
 
-function nextServer () {
+function nextServer() {
   if (++serversNext >= serversMax) {
     serversNext -= serversMax;
   }
@@ -102,13 +103,13 @@ module.exports = {
   },
 
   neighbors: function (db, collP, collR, id, i, cb) {
-    db().query('select out()._key from ' + collP + ' where _key=:key', {params: {key: id}, limit: 1000})
-    .then(function (result) {cb(null, result[0].out.length);})
+    db().query('select out_' + collR + '._key as out from ' + collP + ' where _key=:key', {params: {key: id}, limit: 1000})
+    .then(function (result) {var r = result[0]; cb(null, (r.hasOwnProperty('out')) ? r.out.length : 0);})
     .catch(function (err) {cb(err);});
   },
 
   neighbors2: function (db, collP, collR, id, i, cb) {
-   db().query('SELECT set(out()._key, out().out()._key) FROM ' + collP + ' WHERE _key = :key', {params: {key: id}})
+   db().query('SELECT set(out_' + collR + '._key, out_' + collR + '.out_' + collR + '._key) FROM ' + collP + ' WHERE _key = :key', {params: {key: id}})
    .then(function (result) {
            var count = 0;
            var seen = {};

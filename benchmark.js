@@ -2,6 +2,7 @@
 'use strict';
 
 var underscore = require('underscore');
+var async = require('async');
 
 // .............................................................................
 // parse command-line options
@@ -19,7 +20,7 @@ var argv = require('yargs')
     alias: 'tests',
     demand: false,
     default: 'all',
-    describe: 'tests to run separated by comma: shortest, neighbors, neighbors2, singleRead, singleWrite, aggregation',
+    describe: 'tests to run separated by comma: shortest, neighbors, neighbors2, singleRead, singleWrite, aggregation, hardPath, singleWriteSync',
     type: 'string'
     })
   .requiresArg('t')
@@ -72,7 +73,7 @@ var total = 0;
 
 if (tests.length === 0 || tests === 'all') {
   tests = ['warmup', 'shortest', 'neighbors', 'neighbors2', 'singleRead', 'singleWrite',
-           'aggregation'];
+           'aggregation', 'hardPath', 'singleWriteSync'];
 }
 else {
   tests = tests.split(',');
@@ -84,7 +85,7 @@ var desc;
 try {
   desc = require('./' + database + '/description');
 } catch (err) {
-  console.log('ERROR database %s is unknown', database);
+  console.log('ERROR database %s is unknown (%s)', database, err);
   process.exit(1);
 }
 
@@ -111,7 +112,7 @@ if (restriction > 0) {
 var posTests = -1;
 var testRuns = [];
 
-console.log('INFO using server address ', host);
+console.log('INFO using server address %s', host);
 
 desc.startup(host, function (db) {
   testRuns.push(function (resolve, reject) {
@@ -126,10 +127,10 @@ desc.startup(host, function (db) {
       testRuns.push(function (resolve, reject) {
         var start = Date.now();
         desc.warmup(db, function (err) {
-		      if (err) return reject(err);
-		      reportResult(desc.name, 'warmup', 0, Date.now() - start);
-		      return resolve();
-		    });
+                      if (err) return reject(err);
+                      reportResult(desc.name, 'warmup', 0, Date.now() - start);
+                      return resolve();
+                    });
       });
     }
     else if (test === 'singleRead') {
@@ -137,6 +138,9 @@ desc.startup(host, function (db) {
     }
     else if (test === 'singleWrite') {
       testRuns.push(function (resolve, reject) { benchmarkSingleWrite(desc, db, resolve, reject); });
+    }
+    else if (test === 'singleWriteSync') {
+      testRuns.push(function (resolve, reject) { benchmarkSingleWriteSync(desc, db, resolve, reject); });
     }
     else if (test === 'aggregation') {
       testRuns.push(function (resolve, reject) { benchmarkAggregation(desc, db, resolve, reject); });
@@ -149,6 +153,9 @@ desc.startup(host, function (db) {
     }
     else if (test === 'shortest') {
       testRuns.push(function (resolve, reject) { benchmarkShortestPath(desc, db, resolve, reject); });
+    }
+    else if (test === 'hardPath') {
+      testRuns.push(function (resolve, reject) { benchmarkHardPath(desc, db, resolve, reject); });
     }
     else {
       console.error('ERROR unknown test case %s', test);
@@ -191,21 +198,50 @@ function benchmarkSingleRead(desc, db, resolve, reject) {
 
       var start = Date.now();
 
-      for (var k = 0; k < ids.length; ++k) {
-        desc.getDocument(db, coll, ids[k], function (err, doc) {
-          if (err) return reject(err);
+      if (desc.hasOwnProperty('CONCURRENCY')) {
+        console.log('INFO using concurrency %d', desc.CONCURRENCY);
 
-          if (debug) {
-            console.log('RESULT', doc);
-          }
+        async.eachLimit(
+          ids, desc.CONCURRENCY,
 
-          ++total;
+          function (id, cb) {
+            desc.getDocument(db, coll, id,
+                             function (err, doc) {
+                               if (err) return cb(err);
 
-          if (total === goal) {
+                               if (debug) {
+                                 console.log('RESULT', doc);
+                               }
+
+                               ++total;
+                               return cb(null);
+                             });
+          },
+
+          function (err) {
+            if (err) return reject(err);
+            if (total !== goal) reject('expecting ' + goal + ', got ' + total);
             reportResult(desc.name, 'single reads', goal, Date.now() - start);
             return resolve();
-          }
-        });
+          });
+      }
+      else {
+        for (var k = 0; k < ids.length; ++k) {
+          desc.getDocument(db, coll, ids[k], function (err, doc) {
+            if (err) return reject(err);
+
+            if (debug) {
+              console.log('RESULT', doc);
+            }
+
+            ++total;
+
+            if (total === goal) {
+              reportResult(desc.name, 'single reads', goal, Date.now() - start);
+              return resolve();
+            }
+          });
+        }
       }
     });
   } catch (err) {
@@ -219,6 +255,11 @@ function benchmarkSingleRead(desc, db, resolve, reject) {
 // .............................................................................
 
 function benchmarkSingleWrite(desc, db, resolve, reject) {
+  if (desc.createCollection === undefined) {
+    console.log('INFO %s does not implement write non-sync', desc.name);
+    return resolve();
+  }
+
   console.log('INFO executing single write with %d documents', bodies.length);
   var name = 'profiles_temp';
 
@@ -235,21 +276,130 @@ function benchmarkSingleWrite(desc, db, resolve, reject) {
 
           var start = Date.now();
 
-          for (var k = 0; k < bodies.length; ++k) {
-            desc.saveDocument(db, coll, underscore.clone(bodies[k]), function (err, doc) {
-              if (err) return reject(err);
+          if (desc.hasOwnProperty('CONCURRENCY')) {
+            console.log('INFO using concurrency %d', desc.CONCURRENCY);
 
-              if (debug) {
-                console.log('RESULT', doc);
-              }
+            async.eachLimit(
+              bodies, desc.CONCURRENCY,
 
-              ++total;
+              function (body, cb) {
+                desc.saveDocument(db, coll, underscore.clone(body),
+                                  function (err, doc) {
+                                    if (err) return cb(err);
+                                    ++total;
 
-              if (total === goal) {
-                reportResult(desc.name, 'single writes', goal, Date.now() - start);
+                                    if (debug) {
+                                      console.log('RESULT', doc);
+                                    }
+
+                                    return cb(null);
+                                  });
+              },
+
+              function (err) {
+                if (err) return reject(err);
+                if (total !== goal) reject('expecting ' + goal + ', got ' + total);
+                reportResult(desc.name, 'single write', goal, Date.now() - start);
                 return resolve();
-              }
-            });
+              });
+          }
+          else {
+            for (var k = 0; k < bodies.length; ++k) {
+              desc.saveDocument(db, coll, underscore.clone(bodies[k]), function (err, doc) {
+                if (err) return reject(err);
+
+                if (debug) {
+                  console.log('RESULT', doc);
+                }
+
+                ++total;
+
+                if (total === goal) {
+                  reportResult(desc.name, 'single writes', goal, Date.now() - start);
+                  return resolve();
+                }
+              });
+            }
+          }
+        });
+      });
+    });
+  } catch (err) {
+    console.log('ERROR %s', err.stack);
+    return reject(err);
+  }
+}
+
+// .............................................................................
+// single write sync
+// .............................................................................
+
+function benchmarkSingleWriteSync(desc, db, resolve, reject) {
+  if (desc.createCollectionSync === undefined) {
+    console.log('INFO %s does not implement write sync', desc.name);
+    return resolve();
+  }
+
+  console.log('INFO executing single write sync with %d documents', bodies.length);
+  var name = 'profiles_temp';
+
+  try {
+    var goal = bodies.length ;
+    total = 0;
+
+    desc.dropCollection(db, name, function (noerr) {
+      desc.createCollectionSync(db, name, function (err, coll) {
+        if (err) return reject(err);
+
+        desc.getCollection(db, name, function (err, coll) {
+          if (err) return reject(err);
+
+          var start = Date.now();
+
+          if (desc.hasOwnProperty('CONCURRENCY')) {
+            console.log('INFO using concurrency %d', desc.CONCURRENCY);
+
+            async.eachLimit(
+              bodies, desc.CONCURRENCY,
+
+              function (body, cb) {
+                desc.saveDocumentSync(db, coll, underscore.clone(body),
+                                      function (err, doc) {
+                                        if (err) return cb(err);
+
+                                        if (debug) {
+                                          console.log('RESULT', doc);
+                                        }
+
+                                        ++total;
+                                        return cb(null);
+                                      });
+              },
+
+              function (err) {
+                if (err) return reject(err);
+                if (total !== goal) reject('expecting ' + goal + ', got ' + total);
+                reportResult(desc.name, 'single write', goal, Date.now() - start);
+                return resolve();
+              });
+          }
+          else {
+            for (var k = 0; k < bodies.length; ++k) {
+              desc.saveDocumentSync(db, coll, underscore.clone(bodies[k]), function (err, doc) {
+                if (err) return reject(err);
+
+                if (debug) {
+                  console.log('RESULT', doc);
+                }
+
+                ++total;
+
+                if (total === goal) {
+                  reportResult(desc.name, 'single writes sync', goal, Date.now() - start);
+                  return resolve();
+                }
+              });
+            }
           }
         });
       });
@@ -435,6 +585,53 @@ function benchmarkShortestPath(desc, db, resolve, reject) {
             }
           });
         }
+      });
+    });
+  } catch (err) {
+    console.log('ERROR %s', err.stack);
+    return reject(err);
+  }
+}
+
+// .............................................................................
+// hard path
+// .............................................................................
+
+function benchmarkHardPath(desc, db, resolve, reject) {
+  if (desc.shortestPath === undefined) {
+    console.log('INFO %s does not implement shortest path', desc.name);
+    return resolve();
+  }
+
+  console.log('INFO executing hard path');
+  var nameP = 'profiles';
+  var nameR = 'relations';
+  var path = {from: 'P349622', to: 'P1625331'};
+
+  try {
+    var myPaths = 0;
+
+    desc.getCollection(db, nameP, function (err, collP) {
+      if (err) return reject(err);
+
+      desc.getCollection(db, nameR, function (err, collR) {
+        if (err) return reject(err);
+
+        var start = Date.now();
+
+        desc.shortestPath(db, collP, collR, path, 0, function (err, result) {
+          if (err) return reject(err);
+
+          if (debug) {
+            console.log('RESULT', result);
+          }
+
+          myPaths += result;
+
+          console.log('INFO total paths length: %d', myPaths);
+          reportResult(desc.name, 'hard path', 1, Date.now() - start);
+          return resolve();
+        });
       });
     });
   } catch (err) {
