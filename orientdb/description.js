@@ -1,6 +1,7 @@
 'use strict';
 
-var Oriento = require('oriento');
+var OrientDB = require('orientjs');
+var Promise = require('bluebird');
 
 function capitalize(a) {
   return a.replace(/(^|\s|_)([a-z])/g, function (m, p1, p2) {return p1 + p2.toUpperCase();});
@@ -32,18 +33,44 @@ module.exports = {
   name: 'OrientDB',
 
   startup: function (host, cb) {
+    var dbPromise = [];
+
     for (var i = 0; i < serversMax; ++i) {
-      var server = Oriento({
-	host: host,
+      var server = OrientDB({
+        host: host,
         port: 2424,
         username: 'root',
         password: 'abc'
       });
 
-      serversConn.push(server.use('pokec'));
+      var db = server.use({
+        name: 'pokec'
+      });
+
+      dbPromise.push(db.open('admin', 'admin'));
     }
 
-    cb(nextServer);
+    Promise.all(dbPromise).then(function (dbs) {
+      dbs.forEach(function (d) {
+        serversConn.push(d);
+      });
+
+      cb(nextServer);
+    });
+  },
+
+  initClass: function (db, cb) {
+    var classPromise = [];
+
+    for (var conn in serversConn) {
+      classPromise.push(serversConn[conn].class.list());
+    }
+
+    Promise.all(classPromise).then(function () {
+      cb();
+    }).catch(function (e) {
+      cb(e);
+    });
   },
 
   warmup: function (db, cb) {
@@ -53,9 +80,26 @@ module.exports = {
       module.exports.aggregate(db, coll, function (err, result) {
         if (err) return cb(err);
 
-        console.log('INFO warmup done');
+        console.log('INFO warmup 1/2');
 
-        return cb(null);
+        var i;
+        var j;
+        var s = [];
+
+        for (i = 1; i < 50; ++i) {
+          for (j = 50; j < 100; ++j) {
+            s.push(db().query('select shortestPath($a[0].rid, $b[0].rid, "Out") '
+                            + 'LET $a = (select @rid from Profile where _key = "P' + i + '"), '
+                            + '$b = (select @rid from Profile where _key = "P' + j + '")', {limit: 10000}));
+          }
+        }
+
+        Promise.all(s).then(function () {
+          console.log('INFO warmup 2/2');
+          cb(null);
+        }).catch(function (e) {
+          cb(e);
+        });
       });
     });
   },
@@ -76,7 +120,9 @@ module.exports = {
     name = orientName(name);
 
     db().query('create class ' + name)
-    .then(function () {cb();})
+    .then(function () {
+      module.exports.initClass(db, cb);
+    })
     .catch(function (err) {cb(err);});
   },
 
@@ -88,12 +134,13 @@ module.exports = {
   },
 
   saveDocument: function (db, coll, doc, cb) {
-    if (doc.children < 1) doc.children = 0; // why? OrientDB gives an unmarshalling error for 1e-10
-
-    db().query('insert into ' + coll + ' content :body',
-             {params: {body: doc}})
-    .then(function (result) {cb(null, result);})
-    .catch(function (err) {cb(err);});
+    db().class.get(coll).then(function (klass) {
+      klass.create(doc).then(function (rec) {
+        cb(null, rec);
+      }).catch(function (e) {
+        cb(e);
+      });
+    });
   },
 
   aggregate: function (db, coll, cb) {
@@ -104,7 +151,7 @@ module.exports = {
 
   neighbors: function (db, collP, collR, id, i, cb) {
     db().query('select out_' + collR + '._key as out from ' + collP + ' where _key=:key', {params: {key: id}, limit: 1000})
-    .then(function (result) {var r = result[0]; cb(null, (r.hasOwnProperty('out')) ? r.out.length : 0);})
+    .then(function (result) {cb(null, result[0].out ? result[0].out.length : 0);})
     .catch(function (err) {cb(err);});
   },
 
@@ -132,8 +179,8 @@ module.exports = {
 
   shortestPath: function (db, collP, collR, path, i, cb) {
     db().query('select shortestPath($a[0].rid, $b[0].rid, "Out") '
-           + 'LET $a = (select @rid from PROFILE where _key = "' + path.from + '"), '
-           + '$b = (select @rid from PROFILE where _key = "' + path.to + '")', {limit: 10000})
+           + 'LET $a = (select @rid from ' + collP + ' where _key = "' + path.from + '"), '
+           + '$b = (select @rid from ' + collP + ' where _key = "' + path.to + '")', {limit: 10000})
     .then(function (result) {cb(null, (result[0].shortestPath.length - 1));})
     .catch(function (err) {cb(err);});
   }
