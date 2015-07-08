@@ -1,0 +1,28 @@
+{
+  "config": {
+    "parallel": false
+  },
+  "source": { "file": { "path": "@INPUT_PROFILES@" } },
+  "extractor": { "row": {} },
+  "transformers": [
+    { "csv": { "separator": "\t", "stringCharacter": "", "unicode": false } },
+    { "vertex": { "class": "Profile" } }
+  ],
+  "loader": {
+    "orientdb": {
+       "dbURL": "plocal:@DATABASE@",
+       "dbType": "graph",
+       "wal": false,
+       "useLightweightEdges" : true,
+       "dbAutoCreateProperties": true,
+       "classes": [
+         {"name": "Profile", "extends": "V", "clusters": 1},
+         {"name": "Relation", "extends": "E"}
+       ], "indexes": [
+         {"class":"Profile", "fields":["_key:string"], "type":"UNIQUE_HASH_INDEX" }
+       ],
+       "settings": {
+       }
+    }
+  }
+}

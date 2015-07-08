@@ -1,0 +1,38 @@
+{
+  "config": {
+    "parallel": false
+  },
+  "source": { "file": { "path": "@INPUT_RELATIONS@" } },
+  "extractor": { "row": {} },
+  "transformers": [
+    { "csv": { "separator": "\t", "stringCharacter": "", "unicode": false } },
+    { "merge": { "joinFieldName":"_from", "lookup":"Profile._key", "unresolvedLinkAction": "ERROR" } },
+    { "vertex": { "class": "Profile"} },
+    { "edge": {
+        "class": "Relation",
+        "joinFieldName": "_to",
+        "lookup": "Profile._key",
+        "unresolvedLinkAction": "ERROR"
+      }
+    },
+  ],
+  "loader": {
+    "orientdb": {
+       "dbURL": "plocal:@DATABASE@",
+       "dbType": "graph",
+       "wal": false,
+       "batchCommit": 1000,
+       "tx": true,
+       "txUseLog": false,
+       "useLightweightEdges" : true,
+       "classes": [
+         {"name": "Profile", "extends": "V", "clusters": 1},
+         {"name": "Relation", "extends": "E"}
+       ], "indexes": [
+         {"class":"Profile", "fields":["_key:string"], "type":"UNIQUE_HASH_INDEX" }
+       ],
+       "settings": {
+       }
+    }
+  }
+}
