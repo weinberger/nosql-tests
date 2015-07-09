@@ -72,7 +72,7 @@ module.exports = {
   },
 
   neighbors: function (db, collP, collR, id, i, cb) {
-    collR.find({_from: 'P/' + id}).toArray(function (err, result) {
+    collR.find({_from: id}).toArray(function (err, result) {
       if (err) return cb(err);
 
       result = result.map(function (e) { return e._to.substr(2); });
@@ -81,11 +81,11 @@ module.exports = {
   },
 
   neighbors2: function (db, collP, collR, id, i, cb) {
-    collR.find({_from: 'P/' + id}, {_to: true, _id: false}).toArray(function (err, result) {
+    collR.find({_from: id}, {_to: true, _id: false}).toArray(function (err, result) {
       if (err) return cb(err);
 
       result = result.map(function (e) { return e._to; });
-      result.push('P/' + id);
+      result.push(id);
 
       collR.aggregate([
         {$match: {_from: {$in: result}}},
@@ -95,7 +95,7 @@ module.exports = {
 
           if (result2.length === 1) {
             result2 = result2[0].neighbors;
-            if (result2.indexOf('P/' + id) === -1) {
+            if (result2.indexOf(id) === -1) {
               cb(null, result2.length);
             }
             else {
