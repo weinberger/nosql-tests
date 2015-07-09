@@ -37,5 +37,5 @@ INPUT_RELATIONS=`pwd`/soc-pokec-relationships-arangodb.txt
   cd $ARANGODB
 
   ./bin/arangoimp -c ./etc/relative/arangoimp.conf --create-collection true --type tsv --collection profiles --file $INPUT_PROFILES
-  ./bin/arangoimp -c ./etc/relative/arangoimp.conf --create-collection true --type tsv --collection profiles --file $INPUT_RELATIONS
+  ./bin/arangoimp -c ./etc/relative/arangoimp.conf --create-collection true --type tsv --collection relations --file $INPUT_RELATIONS
 )
