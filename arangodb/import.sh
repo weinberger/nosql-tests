@@ -36,6 +36,11 @@ INPUT_RELATIONS=`pwd`/soc-pokec-relationships-arangodb.txt
 (
   cd $ARANGODB
 
-  ./bin/arangoimp -c ./etc/relative/arangoimp.conf --create-collection true --type tsv --collection profiles --file $INPUT_PROFILES
-  ./bin/arangoimp -c ./etc/relative/arangoimp.conf --create-collection true --type tsv --collection relations --file $INPUT_RELATIONS
+  ./bin/arangosh -c etc/relative/arangosh.conf << 'EOF'
+  var db = require("org/arangodb").db;
+  db._create("profiles");
+  db._createEdgeCollection("relations");
+EOF
+  ./bin/arangoimp -c ./etc/relative/arangoimp.conf --type tsv --collection profiles --file $INPUT_PROFILES
+  ./bin/arangoimp -c ./etc/relative/arangoimp.conf --type tsv --collection relations --file $INPUT_RELATIONS
 )
