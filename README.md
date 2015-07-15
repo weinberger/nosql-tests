@@ -49,3 +49,37 @@ Options:
   -a, --address    server host                   [string] [default: "127.0.0.1"]
   -h               Show help                                           [boolean]
 ```
+
+## Start Parameters
+
+We have used the following parameters to start the databases.
+
+**ArangoDB**
+
+```
+./bin/arangod  /mnt/data/arangodb/data-2.7 --server.threads 16 --scheduler.threads 8 --wal.sync-interval 1000  --config etc/relative/arangod.conf --javascript.v8-contexts 17
+```
+
+Admin interface: http://107.178.210.238:8529/
+
+
+**MongoDB**
+
+
+```
+./bin/mongod --storageEngine wiredTiger --syncdelay 1 --dbpath /mnt/data/mongodb/wired2/
+```
+
+**OrientDB**
+
+```
+./bin/server.sh -Xmx28G -Dstorage.wal.maxSize=28000
+```
+
+**Neo4J**
+
+```
+./bin/neo4j start
+```
+
+Admin interface: http://107.178.210.238:7474/
