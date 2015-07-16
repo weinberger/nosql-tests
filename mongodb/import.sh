@@ -30,6 +30,10 @@ if [ ! -f soc-pokec-relationships-mongodb.txt ]; then
   gzip -dc soc-pokec-relationships.txt.gz | awk -F"\t" '{print "P" $1 "\tP" $2}' >> soc-pokec-relationships-mongodb.txt
 fi
 
+if [ "$MONGODB" == "system" ];  then
+  MONGODB=/usr
+fi
+
 ${MONGODB}/bin/mongoimport --db=pokec --collection=profiles --headerline --type=tsv soc-pokec-profiles-mongodb.txt
 ${MONGODB}/bin/mongoimport --db=pokec --collection=relations --headerline --type=tsv soc-pokec-relationships-mongodb.txt
 
