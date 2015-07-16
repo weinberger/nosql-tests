@@ -33,14 +33,28 @@ fi
 INPUT_PROFILES=`pwd`/soc-pokec-profiles-arangodb.txt
 INPUT_RELATIONS=`pwd`/soc-pokec-relationships-arangodb.txt
 
-(
-  cd $ARANGODB
+if [ "$ARANGODB" == "system" ];  then
+  ARANGOSH=/usr/bin/arangosh
+  ARANGOSH_CONF=/etc/arangodb/arangosh.conf
+  ARANGOIMP=/usr/bin/arangoimp
+  ARANGOIMP_CONF=/etc/arangodb/arangoimp.conf
+  APATH=.
+else
+  ARANGOSH=./bin/arangosh
+  ARANGOSH_CONF=./etc/relative/arangosh.conf
+  ARANGOIMP=./bin/arangoimp
+  ARANGOIMP_CONF=./etc/relative/arangoimp.conf
+  APATH=$ARANGODB
+fi
 
-  ./bin/arangosh -c etc/relative/arangosh.conf << 'EOF'
+(
+  cd $APATH
+
+  $ARANGOSH -c $ARANGOSH_CONF << 'EOF'
   var db = require("org/arangodb").db;
   db._create("profiles");
   db._createEdgeCollection("relations");
 EOF
-  ./bin/arangoimp -c ./etc/relative/arangoimp.conf --type tsv --collection profiles --file $INPUT_PROFILES
-  ./bin/arangoimp -c ./etc/relative/arangoimp.conf --type tsv --collection relations --file $INPUT_RELATIONS
+  $ARANGOIMP -c $ARANGOIMP_CONF --type tsv --collection profiles --file $INPUT_PROFILES
+  $ARANGOIMP -c $ARANGOIMP_CONF --type tsv --collection relations --file $INPUT_RELATIONS
 )
