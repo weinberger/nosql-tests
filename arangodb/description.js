@@ -1,7 +1,11 @@
 'use strict';
 
 var Database = require('arangojs');
-var opts = {maxSockets: 25, keepAlive: true, keepAliveMsecs: 1000};
+var opts = {
+  maxSockets: 25, 
+  keepAlive: true, 
+  keepAliveMsecs: 1000
+};
 var Agent = require('http').Agent;
 
 module.exports = {
@@ -22,16 +26,21 @@ module.exports = {
   warmup: function (db, cb) {
     module.exports.getCollection(db, 'profiles', function (err, coll) {
       if (err) return cb(err);
+
       module.exports.aggregate(db, coll, function (err, result) {
         if (err) return cb(err);
+
         console.log('INFO step 1/2 done');
 
         module.exports.getCollection(db, 'relations', function (err, coll) {
           if (err) return cb(err);
-          module.exports.aggregate2(db, coll, function (err, result) {
+
+            module.exports.aggregate2(db, coll, function (err, result) {
             if (err) return cb(err);
+
             console.log('INFO step 2/2 done');
             console.log('INFO warmup done');
+
             return cb(null);
           });
         });
@@ -76,45 +85,60 @@ module.exports = {
   },
 
   neighbors: function (db, collP, collR, id, i, cb) {
-    db.query('RETURN {i: ' + i + ', p: NEIGHBORS(' + collP.name
-             + ', ' + collR.name + ', @key, "outbound", [], {includeData:false})}', {key: collP.name + '/' + id},
+    db.query('RETURN NEIGHBORS(' + collP.name
+             + ', ' + collR.name + ', @key, "outbound", [], {includeData:false})', {key: collP.name + '/' + id},
       function (err, result) {
         if (err) return cb(err);
 
         result.all(function (err, v) {
           if (err) return cb(err);
 
-          cb(null, v[0].p.length);
+          cb(null, v[0].length);
         });
       }
     );
   },
 
   neighbors2: function (db, collP, collR, id, i, cb) {
-    db.query('RETURN {i: ' + i + ', p: NEIGHBORS(' + collP.name
-             + ', ' + collR.name + ', @key, "outbound", [], {minDepth:0 , maxDepth: 2, includeData: false})}', {key: collP.name + '/' + id},
+    db.query('RETURN NEIGHBORS(' + collP.name
+             + ', ' + collR.name + ', @key, "outbound", [], {minDepth:0 , maxDepth: 2, includeData: false})', {key: collP.name + '/' + id},
       function (err, result) {
         if (err) return cb(err);
 
         result.all(function (err, v) {
           if (err) return cb(err);
 
-          cb(null, v[0].p.length);
+          cb(null, v[0].length);
+        });
+      }
+    );
+  },
+
+  neighbors2data: function (db, collP, collR, id, i, cb) {
+    db.query('RETURN NEIGHBORS(' + collP.name + ', ' + collR.name + ', @key, "outbound", [], {minDepth:0 , maxDepth: 2, includeData: true})',
+             {key: collP.name + '/' + id},
+      function (err, result) {
+        if (err) return cb(err);
+
+        result.all(function (err, v) {
+          if (err) return cb(err);
+
+          cb(null, v[0].length);
         });
       }
     );
   },
 
   shortestPath: function (db, collP, collR, path, i, cb) {
-    db.query('RETURN {i: ' + i + ', p: SHORTEST_PATH(' + collP.name + ', ' + collR.name
-      + ', @from, @to, "outbound", {includeData: false}), from: @from, to: @to}',
+    db.query('RETURN SHORTEST_PATH(' + collP.name + ', ' + collR.name
+      + ', @from, @to, "outbound", {includeData: false})',
       {from: 'profiles/' + path.from, to: 'profiles/' + path.to}, function (err, result) {
         if (err) return cb(err);
 
         result.all(function (err, v) {
           if (err) return cb(err);
 
-          var p = v[0].p;
+          var p = v[0];
           cb(null, (p === null) ? 0 : (p.vertices.length - 1));
         });
       }
