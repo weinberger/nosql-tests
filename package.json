@@ -21,7 +21,7 @@
     "url": "https://github.com/weinberger/TBA"
   },
   "author": "Claudius Weinberger <claudius@arangodb.com>",
-  "license": "APACHE-2.0",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/weinberger/TBA/issues"
   },
@@ -34,8 +34,8 @@
     "bluebird": "^2.9.30",
     "mongodb": "^2.0.33",
     "neo4j": "^2.0.0-RC1",
-    "bluebird": "^2.9.30",
     "orientjs": "^2.0.0",
+    "pg-promise": "^1.8.0",
     "underscore": "^1.8.3",
     "yargs": "^3.9.0"
   }

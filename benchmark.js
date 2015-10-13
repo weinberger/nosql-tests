@@ -14,13 +14,17 @@ var argv = require('yargs')
   .command('arangodb', 'ArangoDB benchmark')
   .command('mongodb', 'MongoDB benchmark')
   .command('neo4j', 'neo4j benchmark')
+  .command('orientdb', 'orientdb benchmark')
+  .command('orientdb', 'orientdb benchmark')
+  .command('postgresql', 'postgresql JSON benchmark')
+  .command('postgresql_tabular', 'postgresql tabular benchmark')
   .demand(1)
 
   .option('t', {
     alias: 'tests',
     demand: false,
     default: 'all',
-    describe: 'tests to run separated by comma: shortest, neighbors, neighbors2, singleRead, singleWrite, aggregation, hardPath, singleWriteSync',
+    describe: 'tests to run separated by comma: shortest, neighbors, neighbors2, neighbors2data, singleRead, singleWrite, aggregation, hardPath, singleWriteSync',
     type: 'string'
     })
   .requiresArg('t')
@@ -37,11 +41,20 @@ var argv = require('yargs')
   .option('l', {
     alias: 'neighbors',
     demand: false,
-    default: 500,
+    default: 1000,
     describe: 'look at that many neighbors',
     type: 'integer'
     })
   .requiresArg('l')
+
+  .option('ld', {
+    alias: 'neighbors2data',
+    demand: false,
+    default: 100,
+    describe: 'look at that many neighbors2 with profiles',
+    type: 'integer'
+    })
+  .requiresArg('ld')
 
   .option('a', {
     alias: 'address',
@@ -67,16 +80,17 @@ var tests = argv.t;
 var debug = argv.d;
 var restriction = argv.s;
 var neighbors = argv.l;
+var neighbors2data = argv.ld;
 var host = argv.a;
 
 var total = 0;
 
 if (tests.length === 0 || tests === 'all') {
   tests = ['warmup', 'shortest', 'neighbors', 'neighbors2', 'singleRead', 'singleWrite',
-           'aggregation', 'hardPath', 'singleWriteSync'];
+           'singleWriteSync', 'aggregation', 'hardPath', 'neighbors2data'];
 }
 else {
-  tests = tests.split(',');
+  tests = tests.split(',').map(trim);
 }
 
 var database = databases[0];
@@ -95,14 +109,11 @@ try {
 
 var ids = require('./data/ids100000');
 var bodies = require('./data/bodies100000');
-var paths;
-
-paths = require('./data/shortest');
+var paths = require('./data/shortest');
 
 if (restriction > 0) {
   ids = ids.slice(0, restriction);
   bodies = bodies.slice(0, restriction);
-  paths = paths.slice(0, restriction);
 }
 
 // .............................................................................
@@ -127,10 +138,11 @@ desc.startup(host, function (db) {
       testRuns.push(function (resolve, reject) {
         var start = Date.now();
         desc.warmup(db, function (err) {
-                      if (err) return reject(err);
-                      reportResult(desc.name, 'warmup', 0, Date.now() - start);
-                      return resolve();
-                    });
+          if (err) return reject(err);
+          reportResult(desc.name, 'warmup', 0, Date.now() - start);
+              
+          return resolve();
+        });
       });
     }
     else if (test === 'singleRead') {
@@ -150,6 +162,9 @@ desc.startup(host, function (db) {
     }
     else if (test === 'neighbors2') {
       testRuns.push(function (resolve, reject) { benchmarkNeighbors2(desc, db, resolve, reject); });
+    }
+    else if (test === 'neighbors2data') {
+      testRuns.push(function (resolve, reject) { benchmarkNeighbors2data(desc, db, resolve, reject); });
     }
     else if (test === 'shortest') {
       testRuns.push(function (resolve, reject) { benchmarkShortestPath(desc, db, resolve, reject); });
@@ -206,16 +221,17 @@ function benchmarkSingleRead(desc, db, resolve, reject) {
 
           function (id, cb) {
             desc.getDocument(db, coll, id,
-                             function (err, doc) {
-                               if (err) return cb(err);
+              function (err, doc) {
+                if (err) return cb(err);
 
-                               if (debug) {
-                                 console.log('RESULT', doc);
-                               }
+                if (debug) {
+                  console.log('RESULT', doc);
+                }
 
-                               ++total;
-                               return cb(null);
-                             });
+                ++total;
+                return cb(null);
+              }
+            );
           },
 
           function (err) {
@@ -284,16 +300,16 @@ function benchmarkSingleWrite(desc, db, resolve, reject) {
 
               function (body, cb) {
                 desc.saveDocument(db, coll, underscore.clone(body),
-                                  function (err, doc) {
-                                    if (err) return cb(err);
-                                    ++total;
+                  function (err, doc) {
+                    if (err) return cb(err);
+                    ++total;
 
-                                    if (debug) {
-                                      console.log('RESULT', doc);
-                                    }
+                    if (debug) {
+                      console.log('RESULT', doc);
+                    }
 
-                                    return cb(null);
-                                  });
+                  return cb(null);
+                });
               },
 
               function (err) {
@@ -364,16 +380,16 @@ function benchmarkSingleWriteSync(desc, db, resolve, reject) {
 
               function (body, cb) {
                 desc.saveDocumentSync(db, coll, underscore.clone(body),
-                                      function (err, doc) {
-                                        if (err) return cb(err);
+                  function (err, doc) {
+                    if (err) return cb(err);
 
-                                        if (debug) {
-                                          console.log('RESULT', doc);
-                                        }
+                    if (debug) {
+                      console.log('RESULT', doc);
+                    }
 
-                                        ++total;
-                                        return cb(null);
-                                      });
+                    ++total;
+                    return cb(null);
+                });
               },
 
               function (err) {
@@ -477,7 +493,7 @@ function benchmarkNeighbors(desc, db, resolve, reject) {
 
             if (total === goal) {
               console.log('INFO total number of neighbors found: %d', myNeighbors);
-              reportResult(desc.name, 'neighbors', goal, Date.now() - start);
+              reportResult(desc.name, 'neighbors', myNeighbors, Date.now() - start);
               return resolve();
             }
           });
@@ -496,6 +512,7 @@ function benchmarkNeighbors(desc, db, resolve, reject) {
 
 function benchmarkNeighbors2(desc, db, resolve, reject) {
   console.log('INFO executing distinct neighbors of 1st and 2nd degree for %d elements', neighbors);
+  
   var nameP = 'profiles';
   var nameR = 'relations';
 
@@ -526,7 +543,56 @@ function benchmarkNeighbors2(desc, db, resolve, reject) {
 
             if (total === goal) {
               console.log('INFO total number of neighbors2 found: %d', myNeighbors);
-              reportResult(desc.name, 'neighbors2', goal, Date.now() - start);
+              reportResult(desc.name, 'neighbors2', myNeighbors, Date.now() - start);
+              return resolve();
+            }
+          });
+        }
+      });
+    });
+  } catch (err) {
+    console.log('ERROR %s', err.stack);
+    return reject(err);
+  }
+}
+
+// .............................................................................
+// neighbors2data
+// .............................................................................
+
+function benchmarkNeighbors2data(desc, db, resolve, reject) {
+  console.log('INFO executing distinct neighbors of 1st and 2nd degree with profiles for %d elements', neighbors2data);
+  var nameP = 'profiles';
+  var nameR = 'relations';
+
+  try {
+    var myNeighbors = 0;
+    var goal = neighbors2data;
+    total = 0;
+
+    desc.getCollection(db, nameP, function (err, collP) {
+      if (err) return reject(err);
+
+      desc.getCollection(db, nameR, function (err, collR) {
+        if (err) return reject(err);
+
+        var start = Date.now();
+
+        for (var k = 0; k < neighbors2data; ++k) {
+          desc.neighbors2data(db, collP, collR, ids[k], k, function (err, result) {
+            if (err) return reject(err);
+
+            if (debug) {
+              console.log('RESULT', result);
+            }
+
+            myNeighbors += result;
+
+            ++total;
+
+            if (total === goal) {
+              console.log('INFO total number of neighbors2 with profiles found: %d', myNeighbors);
+              reportResult(desc.name, 'neighbors2data', myNeighbors, Date.now() - start);
               return resolve();
             }
           });
@@ -546,6 +612,7 @@ function benchmarkNeighbors2(desc, db, resolve, reject) {
 function benchmarkShortestPath(desc, db, resolve, reject) {
   if (desc.shortestPath === undefined) {
     console.log('INFO %s does not implement shortest path', desc.name);
+    console.log('INFO -----------------------------------------------------------------------------');
     return resolve();
   }
 
@@ -599,7 +666,8 @@ function benchmarkShortestPath(desc, db, resolve, reject) {
 
 function benchmarkHardPath(desc, db, resolve, reject) {
   if (desc.shortestPath === undefined) {
-    console.log('INFO %s does not implement shortest path', desc.name);
+    console.log('INFO %s does not implement hard path', desc.name);
+    console.log('INFO -----------------------------------------------------------------------------');
     return resolve();
   }
 
