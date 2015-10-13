@@ -81,7 +81,7 @@ module.exports = {
         if (err) return cb(err);
 
         console.log('INFO warmup 1/2');
-
+ 
         var i;
         var j;
         var s = [];
@@ -96,6 +96,8 @@ module.exports = {
 
         Promise.all(s).then(function () {
           console.log('INFO warmup 2/2');
+          console.log('INFO warmup done');
+
           cb(null);
         }).catch(function (e) {
           cb(e);
@@ -128,7 +130,7 @@ module.exports = {
 
   getDocument: function (db, coll, id, cb) {
     db().query('select * from ' + coll + ' where _key=:key',
-             {params: {key: id}, limit: 1})
+      {params: {key: id}, limit: 1})
     .then(function (results) {cb(null, results[0]);})
     .catch(function (err) {cb(err);});
   },
@@ -156,8 +158,8 @@ module.exports = {
   },
 
   neighbors2: function (db, collP, collR, id, i, cb) {
-   db().query('SELECT set(out_' + collR + '._key, out_' + collR + '.out_' + collR + '._key) FROM ' + collP + ' WHERE _key = :key', {params: {key: id}})
-   .then(function (result) {
+    db().query('SELECT set(out_' + collR + '._key, out_' + collR + '.out_' + collR + '._key) FROM ' + collP + ' WHERE _key = :key', {params: {key: id}})
+    .then(function (result) {
            var count = 0;
            var seen = {};
            var al = result[0].set;
@@ -176,6 +178,27 @@ module.exports = {
          })
    .catch(function (err) {cb(err);});
  },
+
+  neighbors2data: function (db, collP, collR, id, i, cb) {
+    db().query('SELECT expand(set(out_' + collR + ', out_' + collR + '.out_' + collR + ')) FROM ' + collP + ' WHERE _key = :key', {params: {key: id}})
+    .then(function (result) {
+           var count = 0;
+           var seen = {};
+           var an = result.length;
+
+           seen[id] = true;
+
+           for (var i1 = 0; i1 < an; ++i1) {
+             if (!seen.hasOwnProperty(result[i1]._key)) {
+               seen[result[i1]._key] = true;
+               ++count;
+             }
+           }
+
+           cb(null, count);
+         })
+    .catch(function (err) {cb(err);});
+  },
 
   shortestPath: function (db, collP, collR, path, i, cb) {
     db().query('select shortestPath($a[0].rid, $b[0].rid, "Out") '
