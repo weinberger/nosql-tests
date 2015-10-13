@@ -2,16 +2,17 @@
 
 var opts = {maxSockets: 25};
 var Agent = require('http').Agent;
-var neo4j = require('neo4j');
+var Neo4j = require('neo4j');
 
 module.exports = {
   name: 'Neo4J',
   CONCURRENCY: 32,
 
   startup: function (host, cb) {
-    var db = new neo4j.GraphDatabase({
+    var db = new Neo4j.GraphDatabase({
       url: 'http://neo4j:abc@' + host + ':7474',
-      agent: new Agent(opts)});
+      agent: new Agent(opts)
+    });
 
     cb(db);
   },
@@ -108,6 +109,32 @@ module.exports = {
               });
   },
 
+  neighbors2data: function (db, collP, collR, id, i, cb) {
+    db.cypher({query: 'MATCH (s:' + collP + ' {_key:{key}})-[*1..2]->(n:'
+                      + collP + ') RETURN DISTINCT n._key, n',
+               params: {key: id},
+               headers: {Connection: 'keep-alive'},
+               lean: true},
+
+              function (err, result) {
+                if (err) return cb(err);
+
+                if (result.map === undefined) {
+                  result = [result['n._key']];
+                }
+                else {
+                  result = result.map(function (x) { return x['n._key']; });
+                }
+
+                if (result.indexOf(id) === -1) {
+                  cb(null, result.length);
+                }
+                else {
+                  cb(null, result.length - 1);
+                }
+              });
+  },
+  
   shortestPath: function (db, collP, collR, path, i, cb) {
     db.cypher({query: 'MATCH (s:' + collP + ' {_key:{from}}),(t:'
                       + collP + ' {_key:{to}}), p = shortestPath((s)-[*..15]->(t)) RETURN [x in nodes(p) | x._key] as path',
