@@ -64,7 +64,7 @@ module.exports = {
   aggregate: function (db, coll, cb) {
 	db.http({
     method: 'GET',
-    path: '/v1/service/aggregate/',
+    path: '/v1/service/aggregate2/',
     headers: {Connection: 'keep-alive'},
     },       function (err, result) {
                 if (err) return cb(err);
