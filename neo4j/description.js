@@ -18,7 +18,7 @@ module.exports = {
   },
 
  warmup: function (db, cb) {
-    db.cypher({query: 'MATCH (:PROFILES)--() return count(*) as count'},
+    db.cypher({query: 'MATCH (n)-[r]-() RETURN COUNT(n.property_i_do_not_have) AS node_count, COUNT(r.property_i_do_not_have) AS count' },
       function (err, result) {
         if (err) return cb(err);
 
