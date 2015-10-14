@@ -90,7 +90,7 @@ if (tests.length === 0 || tests === 'all') {
            'singleWriteSync', 'aggregation', 'hardPath', 'neighbors2data'];
 }
 else {
-  tests = tests.split(',').map(trim);
+  tests = tests.split(',').map(function(e){return e.trim();});
 }
 
 var database = databases[0];
