@@ -140,17 +140,17 @@ module.exports = {
   },
   
   shortestPath: function (db, collP, collR, path, i, cb) {
-    db.cypher({query: 'MATCH (s:' + collP + ' {_key:{from}}),(t:'
-                      + collP + ' {_key:{to}}), p = shortestPath((s)-[*..15]->(t)) RETURN [x in nodes(p) | x._key] as path',
-               params: {from: path.from, to: path.to},
-               headers: {Connection: 'keep-alive'},
-               lean: true},
-
-              function (err, result) {
+	db.http({
+    method: 'GET',
+    path: '/v1/service/shortest_path/' + path.from + '/' + path.to,
+    headers: {Connection: 'keep-alive'},
+    },       function (err, result) {
                 if (err) return cb(err);
 
+                cb(null, result.length);
                 if (result.length === 0) {cb(null, 0);}
-                else {cb(null, (result[0].path.length - 1));}
+                else {cb(null, (result.path.length - 1));}
+
               });
   }
 };
