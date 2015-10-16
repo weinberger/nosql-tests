@@ -10,10 +10,11 @@
     "arangodb/",
     "mongodb/",
     "neo4j/",
+    "neo4jext/",
     "orientdb/"
   ],
   "scripts": {
-    "lint": "eslint benchmark.js arangodb mongodb orientdb neo4j",
+    "lint": "eslint benchmark.js arangodb mongodb orientdb neo4j neo4jext",
     "data": "gunzip < data/bodies100000.json.gz > data/bodies100000.json"
   },
   "repository": {

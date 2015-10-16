@@ -5,7 +5,7 @@ var Agent = require('http').Agent;
 var Neo4j = require('neo4j');
 
 module.exports = {
-  name: 'Neo4J',
+  name: 'Neo4JExt',
   CONCURRENCY: 32,
 
   startup: function (host, cb) {
@@ -18,7 +18,10 @@ module.exports = {
   },
 
  warmup: function (db, cb) {
-    db.cypher({query: 'MATCH (n)-[r]-() RETURN COUNT(n.property_i_do_not_have) AS node_count, COUNT(r.property_i_do_not_have) AS count' },
+	db.http({
+    method: 'GET',
+    path: '/v1/service/warmup'
+    },
       function (err, result) {
         if (err) return cb(err);
 
@@ -44,10 +47,11 @@ module.exports = {
   },
 
   getDocument: function (db, coll, id, cb) {
-    db.cypher({query: 'MATCH (f:' + coll + ' {_key:{key}}) RETURN f',
-               params: {key: id},
-               headers: {Connection: 'keep-alive'},
-               lean: true}, cb);
+	db.http({
+    method: 'GET',
+    path: '/v1/service/document/' + id,
+    headers: {Connection: 'keep-alive'}
+    }, cb);
   },
 
   saveDocumentSync: function (db, coll, doc, cb) {
@@ -58,11 +62,11 @@ module.exports = {
   },
 
   aggregate: function (db, coll, cb) {
-    db.cypher({query: 'MATCH (f:' + coll + ') RETURN f.AGE, count(*)',
-               headers: {Connection: 'keep-alive'},
-               lean: true},
-
-              function (err, result) {
+	db.http({
+    method: 'GET',
+    path: '/v1/service/aggregate2/',
+    headers: {Connection: 'keep-alive'},
+    },       function (err, result) {
                 if (err) return cb(err);
 
                 cb(null, result.length);
@@ -70,34 +74,33 @@ module.exports = {
   },
 
   neighbors: function (db, collP, collR, id, i, cb) {
-    db.cypher({query: 'MATCH (s:' + collP + ' {_key:{key}})-->(n:' + collP + ') RETURN n._key',
-               params: {key: id},
-               headers: {Connection: 'keep-alive'},
-               lean: true},
-
-              function (err, result) {
+	db.http({
+			    method: 'GET',
+			    path: '/v1/service/neighbors/' + id,
+			    headers: {Connection: 'keep-alive'}
+			    },               function (err, result) {
                 if (err) return cb(err);
 
                 if (result.length === undefined) cb(null, 1);
                 else cb(null, result.length);
               });
+
   },
 
   neighbors2: function (db, collP, collR, id, i, cb) {
-    db.cypher({query: 'MATCH (s:' + collP + ' {_key:{key}})-[*1..2]->(n:'
-                      + collP + ') RETURN DISTINCT n._key',
-               params: {key: id},
-               headers: {Connection: 'keep-alive'},
-               lean: true},
-
+	db.http({
+			    method: 'GET',
+			    path: '/v1/service/neighbors2/' + id,
+			    headers: {Connection: 'keep-alive'}
+			    },
               function (err, result) {
                 if (err) return cb(err);
 
                 if (result.map === undefined) {
-                  result = [result['n._key']];
+                  result = [result['_key']];
                 }
                 else {
-                  result = result.map(function (x) { return x['n._key']; });
+                  result = result.map(function (x) { return x['_key']; });
                 }
 
                 if (result.indexOf(id) === -1) {
@@ -136,17 +139,17 @@ module.exports = {
   },
   
   shortestPath: function (db, collP, collR, path, i, cb) {
-    db.cypher({query: 'MATCH (s:' + collP + ' {_key:{from}}),(t:'
-                      + collP + ' {_key:{to}}), p = shortestPath((s)-[*..15]->(t)) RETURN [x in nodes(p) | x._key] as path',
-               params: {from: path.from, to: path.to},
-               headers: {Connection: 'keep-alive'},
-               lean: true},
-
-              function (err, result) {
+	db.http({
+    method: 'GET',
+    path: '/v1/service/shortest_path/' + path.from + '/' + path.to,
+    headers: {Connection: 'keep-alive'},
+    },       function (err, result) {
                 if (err) return cb(err);
 
+                cb(null, result.length);
                 if (result.length === 0) {cb(null, 0);}
-                else {cb(null, (result[0].path.length - 1));}
+                else {cb(null, (result.path.length - 1));}
+
               });
   }
 };

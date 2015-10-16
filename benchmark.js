@@ -14,7 +14,7 @@ var argv = require('yargs')
   .command('arangodb', 'ArangoDB benchmark')
   .command('mongodb', 'MongoDB benchmark')
   .command('neo4j', 'neo4j benchmark')
-  .command('orientdb', 'orientdb benchmark')
+  .command('neo4jext', 'Neo4j Ext benchmark')
   .command('orientdb', 'orientdb benchmark')
   .command('postgresql', 'postgresql JSON benchmark')
   .command('postgresql_tabular', 'postgresql tabular benchmark')
@@ -90,7 +90,7 @@ if (tests.length === 0 || tests === 'all') {
            'singleWriteSync', 'aggregation', 'hardPath', 'neighbors2data'];
 }
 else {
-  tests = tests.split(',').map(trim);
+  tests = tests.split(',').map(function(e){return e.trim();});
 }
 
 var database = databases[0];
