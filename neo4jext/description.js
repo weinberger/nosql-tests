@@ -74,34 +74,33 @@ module.exports = {
   },
 
   neighbors: function (db, collP, collR, id, i, cb) {
-    db.cypher({query: 'MATCH (s:' + collP + ' {_key:{key}})-->(n:' + collP + ') RETURN n._key',
-               params: {key: id},
-               headers: {Connection: 'keep-alive'},
-               lean: true},
-
-              function (err, result) {
+	db.http({
+			    method: 'GET',
+			    path: '/v1/service/neighbors/' + id,
+			    headers: {Connection: 'keep-alive'}
+			    },               function (err, result) {
                 if (err) return cb(err);
 
                 if (result.length === undefined) cb(null, 1);
                 else cb(null, result.length);
               });
+
   },
 
   neighbors2: function (db, collP, collR, id, i, cb) {
-    db.cypher({query: 'MATCH (s:' + collP + ' {_key:{key}})-[*1..2]->(n:'
-                      + collP + ') RETURN DISTINCT n._key',
-               params: {key: id},
-               headers: {Connection: 'keep-alive'},
-               lean: true},
-
+	db.http({
+			    method: 'GET',
+			    path: '/v1/service/neighbors2/' + id,
+			    headers: {Connection: 'keep-alive'}
+			    },
               function (err, result) {
                 if (err) return cb(err);
 
                 if (result.map === undefined) {
-                  result = [result['n._key']];
+                  result = [result['_key']];
                 }
                 else {
-                  result = result.map(function (x) { return x['n._key']; });
+                  result = result.map(function (x) { return x['_key']; });
                 }
 
                 if (result.indexOf(id) === -1) {
