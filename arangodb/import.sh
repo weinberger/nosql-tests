@@ -33,12 +33,30 @@ fi
 INPUT_PROFILES=`pwd`/soc-pokec-profiles-arangodb.txt
 INPUT_RELATIONS=`pwd`/soc-pokec-relationships-arangodb.txt
 
+`hash brew 2>/dev/null`
+if [ "$?" == 0 ]; then
+  `brew ls arangodb | grep -q arango`
+  if [ "$?" == 0 ]; then
+    usingbrew=true
+  else
+    usingbrew=false
+  fi
+else
+  usingbrew=false
+fi
+
 if [ "$ARANGODB" == "system" ];  then
   ARANGOSH=/usr/bin/arangosh
   ARANGOSH_CONF=/etc/arangodb/arangosh.conf
   ARANGOIMP=/usr/bin/arangoimp
   ARANGOIMP_CONF=/etc/arangodb/arangoimp.conf
   APATH=.
+elif [ "$usingbrew" = true ]; then
+  ARANGOSH=./bin/arangosh
+  ARANGOSH_CONF=./etc/arangodb/arangosh.conf
+  ARANGOIMP=./bin/arangoimp
+  ARANGOIMP_CONF=./etc/arangodb/arangoimp.conf
+  APATH=/usr/local
 else
   ARANGOSH=./bin/arangosh
   ARANGOSH_CONF=./etc/relative/arangosh.conf
