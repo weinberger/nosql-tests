@@ -20,6 +20,8 @@ npm run data
 
 The last step will uncompress the test data file.
 
+For each database you want to test, you will also need to run the `import.sh` script in its folder.
+
 ## Example
 
 ```
