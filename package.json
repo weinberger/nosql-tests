@@ -34,6 +34,7 @@
     "bluebird": "^2.9.30",
     "mongodb": "^2.0.33",
     "neo4j": "^2.0.0-RC1",
+    "neo4j-driver": "1.0.0",
     "orientjs": "^2.0.0",
     "pg-promise": "^1.8.0",
     "underscore": "^1.8.3",
