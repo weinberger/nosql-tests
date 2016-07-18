@@ -77,75 +77,58 @@ module.exports = {
   },
 
   neighbors: function (db, collP, collR, id, i, cb) {
-    collR.find({_from: id}).toArray(function (err, result) {
+    collR.find({_from: id},{_to: true, _id:false}).toArray(function (err, result) {
       if (err) return cb(err);
-      
-      result = result.map(function (e) { return e._to.substr(2); });
+
+      cb(null, result.length);
+    });
+  },
+
+  neighborsData: function (db, collP, collR, id, i, cb) {
+    collR.aggregate([
+      {$match:{_from: id}},
+      {$lookup:{from: collP.s.name, localField: '_to', foreignField: '_id', as: 'profileData'}},
+      {$project:{_id:0,_to:1,profileData:1}}
+    ]).toArray(function (err, result) {
+      if (err) return cb(err);
 
       cb(null, result.length);
     });
   },
 
   neighbors2: function (db, collP, collR, id, i, cb) {
-    collR.find({_from: id}, {_to: true, _id: false}).toArray(function (err, result) {
+    collR.aggregate([
+      {$match:{_from: id}},
+      {$lookup:{from: collR.s.name, localField: '_to', foreignField: '_from', as: 'secDegN'}},
+      {$project: {_id:0, temp: {$setUnion: [['$_to'],'$secDegN._to']}}},
+      {$unwind: '$temp'},
+      {$group: {_id: null, nSet: {$addToSet: '$temp'}}},
+      {$project: {_id: 0,  neighbors2:{$setDifference:['$nSet',[id]]}}}
+    ]).toArray(function (err, result) {
       if (err) return cb(err);
 
-      result = result.map(function (e) { return e._to; });
-      result.push(id);
-
-      collR.aggregate([
-        {$match: {_from: {$in: result}}},
-        {$group: {_id: null, _to: {$addToSet: '$_to'}}},
-        {$project: {_id: 0, neighbors: {$setUnion: ['$_to', result]}}}]).toArray(function (err, result2) {
-          if (err) return cb(err);
-
-          if (result2.length === 1) {
-            result2 = result2[0].neighbors;
-            if (result2.indexOf(id) === -1) {
-              cb(null, result2.length);
-            }
-            else {
-              cb(null, result2.length - 1);
-            }
-          } else {
-            cb(null, 0);
-          }
-        });
+      if(result.length === 1) {
+        cb(null,result[0].neighbors2.length);
+      } else {
+        cb(null,0);
+      }
     });
   },
 
   neighbors2data: function (db, collP, collR, id, i, cb) {
-    var count = 0;
-    collR.find({_from: id}, {_to: true, _id: false}).toArray(function (err, result) {
+    collR.aggregate([
+      {$match:{_from: id}},
+      {$lookup:{from: collR.s.name, localField: '_to', foreignField: '_from', as: 'secDegN'}},
+      {$project: {_id:0, temp: {$setUnion: [['$_to'],'$secDegN._to']}}},
+      {$unwind: '$temp'},
+      {$group: {_id: null, nSet: {$addToSet: '$temp'}}},
+      {$project: {_id: 0,  neighbors2:{$setDifference:['$nSet',[id]]}}},
+      {$unwind: '$neighbors2'},
+      {$lookup: {from: collP.s.name, localField: 'neighbors2', foreignField: '_id', as: 'profileData'}}
+    ]).toArray(function (err, result) {
       if (err) return cb(err);
 
-      result = result.map(function (e) { return e._to; });
-      result.push(id);
-
-      collR.aggregate([
-        {$match: {_from: {$in: result}}},
-        {$group: {_id: null, _to: {$addToSet: '$_to'}}},
-        {$project: {_id: 0, neighbors: {$setUnion: ['$_to', result]}}}]).toArray(function (err, result2) {
-          if (err) return cb(err);
-
-          if (result2.length === 1) {
-            result2 = result2[0].neighbors;
-            
-            if (result2.indexOf(id) === -1) {
-              count = resul2.length;
-            }
-            else {
-              count = result2.length - 1;
-            }
-            collP.find({_id: {$in: result2}}).toArray(function (err, result3) {
-              if (err) return cb(err);
-
-              cb(null, count);
-            });
-          } else {
-            cb(null, 0);
-          }
-        });
+      cb(null,result.length);
     });
   }
 };
