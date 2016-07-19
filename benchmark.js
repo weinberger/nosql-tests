@@ -24,7 +24,7 @@ var argv = require('yargs')
     alias: 'tests',
     demand: false,
     default: 'all',
-    describe: 'tests to run separated by comma: shortest, neighbors, neighbors2, neighbors2data, singleRead, singleWrite, aggregation, hardPath, singleWriteSync',
+    describe: 'tests to run separated by comma: shortest, neighbors, neighborsData, neighbors2, neighbors2data, singleRead, singleWrite, aggregation, hardPath, singleWriteSync',
     type: 'string'
     })
   .requiresArg('t')
@@ -86,11 +86,11 @@ var host = argv.a;
 var total = 0;
 
 if (tests.length === 0 || tests === 'all') {
-  tests = ['warmup', 'shortest', 'neighbors', 'neighbors2', 'singleRead', 'singleWrite',
+  tests = ['warmup', 'shortest', 'neighbors', 'neighborsData', 'neighbors2', 'singleRead', 'singleWrite',
            'singleWriteSync', 'aggregation', 'hardPath', 'neighbors2data'];
 }
 else {
-  tests = tests.split(',').map(trim);
+  tests = tests.split(',');
 }
 
 var database = databases[0];
@@ -159,6 +159,9 @@ desc.startup(host, function (db) {
     }
     else if (test === 'neighbors') {
       testRuns.push(function (resolve, reject) { benchmarkNeighbors(desc, db, resolve, reject); });
+    }
+    else if (test === 'neighborsData') {
+      testRuns.push(function (resolve, reject) { benchmarkNeighborsData(desc, db, resolve, reject); });
     }
     else if (test === 'neighbors2') {
       testRuns.push(function (resolve, reject) { benchmarkNeighbors2(desc, db, resolve, reject); });
@@ -494,6 +497,55 @@ function benchmarkNeighbors(desc, db, resolve, reject) {
             if (total === goal) {
               console.log('INFO total number of neighbors found: %d', myNeighbors);
               reportResult(desc.name, 'neighbors', myNeighbors, Date.now() - start);
+              return resolve();
+            }
+          });
+        }
+      });
+    });
+  } catch (err) {
+    console.log('ERROR %s', err.stack);
+    return reject(err);
+  }
+}
+
+// .............................................................................
+// neighborsData
+// .............................................................................
+
+function benchmarkNeighborsData(desc, db, resolve, reject) {
+  console.log('INFO executing neighbors with profiles for %d elements', neighbors);
+  var nameP = 'profiles';
+  var nameR = 'relations';
+
+  try {
+    var myNeighbors = 0;
+    var goal = neighbors;
+    total = 0;
+
+    desc.getCollection(db, nameP, function (err, collP) {
+      if (err) return reject(err);
+
+      desc.getCollection(db, nameR, function (err, collR) {
+        if (err) return reject(err);
+
+        var start = Date.now();
+
+        for (var k = 0; k < neighbors; ++k) {
+          desc.neighborsData(db, collP, collR, ids[k], k, function (err, result) {
+            if (err) return reject(err);
+
+            if (debug) {
+              console.log('RESULT', result);
+            }
+
+            myNeighbors += result;
+
+            ++total;
+
+            if (total === goal) {
+              console.log('INFO total number of neighbors with profiles found: %d', myNeighbors);
+              reportResult(desc.name, 'neighborsData', myNeighbors, Date.now() - start);
               return resolve();
             }
           });
