@@ -35,9 +35,9 @@ INPUT_RELATIONS=`pwd`/soc-pokec-relationships-arangodb.txt
 
 if [ "$ARANGODB" == "system" ];  then
   ARANGOSH=/usr/bin/arangosh
-  ARANGOSH_CONF=/etc/arangodb/arangosh.conf
+  ARANGOSH_CONF=/etc/arangodb3/arangosh.conf
   ARANGOIMP=/usr/bin/arangoimp
-  ARANGOIMP_CONF=/etc/arangodb/arangoimp.conf
+  ARANGOIMP_CONF=/etc/arangodb3/arangoimp.conf
   APATH=.
 else
   ARANGOSH=./bin/arangosh
