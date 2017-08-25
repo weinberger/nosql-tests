@@ -89,8 +89,8 @@ if (tests.length === 0 || tests === 'all') {
   tests = ['warmup', 'shortest', 'neighbors', 'neighbors2', 'singleRead', 'singleWrite',
            'singleWriteSync', 'aggregation', 'hardPath', 'neighbors2data'];
 }
-else {
-  tests = tests.split(',').map(trim);
+else {  
+  tests = tests.split(',').map(function(e){return e.trim();});
 }
 
 var database = databases[0];
