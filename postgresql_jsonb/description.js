@@ -2,8 +2,7 @@ var _ = require("underscore");
 var pgpLib = require("pg-promise");
 
 // Initializing the library, with optional global settings: 
-var pgp = pgpLib({poolSize: 25});
-pgp.pg.defaults.poolSize=25;
+var pgp = pgpLib();
 
 function normalizeName(name) {
   return name.toLowerCase();
@@ -15,9 +14,16 @@ module.exports = {
   server: {},
   startup: function (host, cb) {
     var results = [];
-    var connectionString = 'postgres://mypguser:mypguserpass@' + host + ':5432/pokec';
-
-    cb(pgp(connectionString));
+    const cn = {
+      host,
+      port: 5432,
+      database: 'pokec_json',
+      user: 'postgres',
+      password: 'postgres',
+      min: 0,
+      max: 25
+    }
+    cb(pgp(cn));
   },
 
   warmup: function (db, cb) {
@@ -29,15 +35,30 @@ module.exports = {
       module.exports.loadRelations(db, 'relations', function (err, table) {
         if (err) return cb(err);
 
-        console.log('INFO warmup 1/2');
+        console.log('INFO step 1/3 done');
 
         module.exports.aggregate(db, "Profiles", function (err, result) {
           if (err)  return cb(err);
         
-          console.log('INFO warmup 2/2');
-          console.log('INFO warmup done');
+          console.log('INFO step 2/3 done');
 
-          return cb(null);
+          module.exports.getCollection(db, 'Profiles', function (err, coll) {
+            if (err) return cb(err);
+
+            var warmupIds = require('../data/warmup1000');
+            var goal = 1000;
+            var total = 0;
+            for (var i = 0; i < goal; i++) {
+              module.exports.getDocument(db, coll, warmupIds[i], function (err, result) {
+                ++total;
+                if (total === goal) {
+                  console.log('INFO step 3/3 done');
+                  console.log('INFO warmup done');
+                  return cb(null);
+               }
+             });
+            }
+          });
         });
       });
     });
@@ -84,7 +105,7 @@ module.exports = {
   },
 
   getDocument: function (db, table, id, cb) {
-    db.query('select * from ' + table + ' where id=$1', [id])
+    db.query('select * from ' + table + ' where _key=$1', [id])
       .then(function (results) {cb(null, results[0]);})
       .catch(function (err) {cb(err);});
   },
@@ -97,7 +118,7 @@ module.exports = {
   },
 
   aggregate: function (db, table, cb) {
-    db.query("select structure->>'AGE', count(*) from " + table + " group by structure->>'AGE'", [])
+    db.query("select data->>'AGE', count(*) from " + table + " group by data->>'AGE'", [])
       .then(function (result) {cb(null, result);})
       .catch(function (err) {cb(err);});
   },
@@ -115,7 +136,7 @@ module.exports = {
   },
 
   neighbors2data: function (db, tableP, tableR, id, i, cb) {
-    db.query("select * from profiles where id in (select _to from relations where _from = $1 union distinct select _to from relations where _to != ($1) and _from in (select  _to from relations where _from = $1))", [id])
+    db.query("select * from profiles where _key in (select _to from relations where _from = $1 union distinct select _to from relations where _to != ($1) and _from in (select  _to from relations where _from = $1))", [id])
    .then(function (result) {cb(null, result.length);})
    .catch(function (err) {cb(err);});
   },

@@ -2,8 +2,7 @@
 
 // Initializing the library, with optional global settings: 
 var pgpLib = require("pg-promise");
-var pgp = pgpLib({poolSize: 25});
-pgp.pg.defaults.poolSize=25;
+var pgp = pgpLib();
 
 var columns = [
     "AGE",
@@ -87,26 +86,63 @@ module.exports = {
     }
     module.exports.singleWriteQuery = "insert into profiles_temp  (" + insertColumns.join(", ") + ") values(nextval('genID'), " + binds.join(", ") + ")";
 
-    var connectionString = 'postgres://mypguser:mypguserpass@' + host + ':5432/pokec_tabular';
-
-    cb(pgp(connectionString));
+    var connectionString = 'postgres://postgres:postgres@' + host + ':5432/pokec_tabular'; 
+    const cn = {
+      host,
+      port: 5432,
+      database: 'pokec_tabular',
+      user: 'postgres',
+      password: 'postgres',
+      min: 0,
+      max: 25
+    }
+    cb(pgp(cn));
   },
 
   warmup: function (db, cb) {
-    module.exports.loadRelations(db, 'relations', function (err, table) {
-      if (err) return cb(err);
+    module.exports.getVersion(db, "", function (err, result) {
+      if (err)  return cb(err);
 
-      console.log('INFO warmup 1/2');
+      console.log('INFO version ' + JSON.stringify(result));
 
-      module.exports.aggregate(db, "profiles", function (err, result) {
-        if (err)  return cb(err);
-        
-        console.log('INFO warmup 2/2');
-        console.log('INFO warmup done');
+      module.exports.loadRelations(db, 'relations', function (err, table) {
+        if (err) return cb(err);
 
-        return cb(null);
+        console.log('INFO step 1/3 done');
+
+        module.exports.aggregate(db, "Profiles", function (err, result) {
+          if (err)  return cb(err);
+
+          console.log('INFO step 2/3 done');
+
+          module.exports.getCollection(db, 'Profiles', function (err, coll) {
+            if (err) return cb(err);
+
+            var warmupIds = require('../data/warmup1000');
+            var goal = 1000;
+            var total = 0;
+            for (var i = 0; i < goal; i++) {
+              module.exports.getDocument(db, coll, warmupIds[i], function (err, result) {
+                if (err) return cb(err);
+
+                ++total;
+                if (total === goal) {
+                  console.log('INFO step 3/3 done');
+                  console.log('INFO warmup done');
+                  return cb(null);
+               }
+             });
+            }
+          });
+        });
       });
     });
+  },
+
+  getVersion: function (db, name, cb) {
+    db.query('select version();')
+      .then(function (result) {cb(null, result);})
+      .catch(function (err) {cb(err);});
   },
 
   loadRelations: function (db, name, cb) {
@@ -144,7 +180,7 @@ module.exports = {
   },
 
   getDocument: function (db, table, id, cb) {
-    db.query('select * from profiles where id=$1',[id])
+    db.query('select * from profiles where _key=$1',[id])
       .then(function (results) {cb(null, results[0]);})
       .catch(function (err) {cb(err);});
   },
@@ -196,7 +232,7 @@ module.exports = {
   },
 
   neighbors2data: function (db, tableP, tableR, id, i, cb) {
-    db.query("select * from profiles where id in (select _to from relations where _from = $1 union distinct select _to from relations where _to != $1 and _from in (select  _to from relations where _from = $1))", [id])
+    db.query("select * from profiles where _key in (select _to from relations where _from = $1 union distinct select _to from relations where _to != $1 and _from in (select  _to from relations where _from = $1))", [id])
      .then(function (result) {
        cb(null, result.length);
      })
