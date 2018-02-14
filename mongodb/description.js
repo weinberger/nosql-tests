@@ -7,15 +7,13 @@ module.exports = {
 
   startup: function (host, cb) {
     MongoClient.connect('mongodb://' + host + ':27017/pokec', {
-      server: {
-        auto_reconnect: true,
-        poolSize: 25,
-        socketOptions: {keepAlive: 1}
-      }
-    }, function (err, db) {
+      autoReconnect: true,
+      poolSize: 25,
+      keepAlive: 1
+    }, function (err, client) {
       if (err) return console.log(err);
 
-      cb(db);
+      cb(client.db('pokec'));
     });
   },
 
@@ -26,7 +24,7 @@ module.exports = {
       coll.aggregate([{$group: {_id: '$AGE', count: {$sum: 1}}}], function (err, result) {
         if (err) return cb(err);
 
-        console.log('INFO step 1/2 done');
+        console.log('INFO step 1/3 done');
 
         module.exports.getCollection(db, 'relations', function (err, coll) {
           if (err) return cb(err);
@@ -34,10 +32,27 @@ module.exports = {
           coll.count({_from: {$gt: ''}}, function (err, result) {
             if (err) return cb(err);
 
-            console.log('INFO step 2/2 done');
-            console.log('INFO warmup done');
+            console.log('INFO step 2/3 done');
 
-            return cb(null);
+            module.exports.getCollection(db, 'profiles', function (err, coll) {
+              if (err) return cb(err);
+
+              var warmupIds = require('../data/warmup1000');
+              var goal = 1000;
+              var total = 0;
+              for (var i = 0; i < goal; i++) {
+                module.exports.getDocument(db, coll, warmupIds[i], function (err, result) {
+                  if (err) return cb(err);
+
+                  ++total;
+                  if (total === goal) {
+                    console.log('INFO step 3/3 done');
+                    console.log('INFO warmup done');
+                    return cb(null);
+                  }
+                });
+              }
+            });
           });
         });
       });
@@ -73,79 +88,63 @@ module.exports = {
   },
 
   aggregate: function (db, coll, cb) {
-    coll.aggregate([{$group: {_id: '$AGE', count: {$sum: 1}}}], cb);
+    coll.aggregate([{$group: {_id: '$AGE', count: {$sum: 1}}}]).toArray(function (err, result) {
+      if (err) return cb(err);
+
+      cb(null, result.length);
+    });
   },
 
   neighbors: function (db, collP, collR, id, i, cb) {
-    collR.find({_from: id}).toArray(function (err, result) {
+    collR.aggregate([
+      {$match: {_from: id}},
+      {$lookup: {
+        from: collP.s.name,
+        localField: '_to',
+        foreignField: '_id',
+        as: 'profile'
+      }},
+      {$project: {_id: 0, "profile._id": 1}}
+    ]).toArray(function (err, result) {
       if (err) return cb(err);
-      
-      result = result.map(function (e) { return e._to.substr(2); });
 
       cb(null, result.length);
     });
   },
 
   neighbors2: function (db, collP, collR, id, i, cb) {
-    collR.find({_from: id}, {_to: true, _id: false}).toArray(function (err, result) {
+    collR.aggregate([
+      {$match: {_from: id}},
+      {$lookup: {from: collR.s.name, localField: '_to', foreignField: '_from', as: 'n2'}},
+      {$project: {_id: 0, temp: {$concatArrays: [['$_to'], '$n2._to']}}},
+      {$unwind: '$temp'},
+      {$group: {_id: null, n2Set: {$addToSet: '$temp'}}},
+      {$project: {_id: 0, n2List: {$setDifference: ['$n2Set', [id]]}}},
+      {$unwind: '$n2List'},
+      {$lookup: {from: collP.s.name, localField: 'n2List', foreignField: '_id', as: 'profile'}},
+      {$project: {_id: 0, "profile._id": 1}}
+    ]).toArray(function (err, result) {
       if (err) return cb(err);
 
-      result = result.map(function (e) { return e._to; });
-      result.push(id);
-
-      collR.aggregate([
-        {$match: {_from: {$in: result}}},
-        {$group: {_id: null, _to: {$addToSet: '$_to'}}},
-        {$project: {_id: 0, neighbors: {$setUnion: ['$_to', result]}}}]).toArray(function (err, result2) {
-          if (err) return cb(err);
-
-          if (result2.length === 1) {
-            result2 = result2[0].neighbors;
-            if (result2.indexOf(id) === -1) {
-              cb(null, result2.length);
-            }
-            else {
-              cb(null, result2.length - 1);
-            }
-          } else {
-            cb(null, 0);
-          }
-        });
+      cb(null, result.length);
     });
   },
 
   neighbors2data: function (db, collP, collR, id, i, cb) {
-    var count = 0;
-    collR.find({_from: id}, {_to: true, _id: false}).toArray(function (err, result) {
+    collR.aggregate([
+      {$match: {_from: id}},
+      {$lookup: {from: collR.s.name, localField: '_to', foreignField: '_from', as: 'n2'}},
+      {$project: {_id: 0, temp: {$concatArrays: [['$_to'], '$n2._to']}}},
+      {$unwind: '$temp'},
+      {$group: {_id: null, n2Set: {$addToSet: '$temp'}}},
+      {$project: {_id: 0, n2List: {$setDifference: ['$n2Set', [id]]}}},
+      {$unwind: '$n2List'},
+      {$lookup: {from: collP.s.name, localField: 'n2List', foreignField: '_id', as: 'profile'}}
+    ]).toArray(function (err, result) {
       if (err) return cb(err);
 
-      result = result.map(function (e) { return e._to; });
-      result.push(id);
-
-      collR.aggregate([
-        {$match: {_from: {$in: result}}},
-        {$group: {_id: null, _to: {$addToSet: '$_to'}}},
-        {$project: {_id: 0, neighbors: {$setUnion: ['$_to', result]}}}]).toArray(function (err, result2) {
-          if (err) return cb(err);
-
-          if (result2.length === 1) {
-            result2 = result2[0].neighbors;
-            
-            if (result2.indexOf(id) === -1) {
-              count = resul2.length;
-            }
-            else {
-              count = result2.length - 1;
-            }
-            collP.find({_id: {$in: result2}}).toArray(function (err, result3) {
-              if (err) return cb(err);
-
-              cb(null, count);
-            });
-          } else {
-            cb(null, 0);
-          }
-        });
+      cb(null, result.length);
     });
   }
+
 };

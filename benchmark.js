@@ -12,9 +12,9 @@ var argv = require('yargs')
   .usage('Usage: $0 <command> [options]')
 
   .command('arangodb', 'ArangoDB benchmark')
+  .command('arangodb-mmfiles', 'ArangoDB benchmark')
   .command('mongodb', 'MongoDB benchmark')
   .command('neo4j', 'neo4j benchmark')
-  .command('orientdb', 'orientdb benchmark')
   .command('orientdb', 'orientdb benchmark')
   .command('postgresql', 'postgresql JSON benchmark')
   .command('postgresql_tabular', 'postgresql tabular benchmark')
@@ -90,7 +90,7 @@ if (tests.length === 0 || tests === 'all') {
            'singleWriteSync', 'aggregation', 'hardPath', 'neighbors2data'];
 }
 else {
-  tests = tests.split(',').map(trim);
+  tests = tests.split(',').map(function (e) { return e.trim(); });
 }
 
 var database = databases[0];
@@ -109,7 +109,7 @@ try {
 
 var ids = require('./data/ids100000');
 var bodies = require('./data/bodies100000');
-var paths = require('./data/shortest');
+var paths = require('./data/shortest1000');
 
 if (restriction > 0) {
   ids = ids.slice(0, restriction);
@@ -140,7 +140,6 @@ desc.startup(host, function (db) {
         desc.warmup(db, function (err) {
           if (err) return reject(err);
           reportResult(desc.name, 'warmup', 0, Date.now() - start);
-              
           return resolve();
         });
       });
@@ -187,7 +186,7 @@ desc.startup(host, function (db) {
 
 function reportError(err) {
   console.log('ERROR %s', err);
-  process.exit(0);
+  process.exit(1);
 }
 
 function executeTest() {
@@ -512,7 +511,7 @@ function benchmarkNeighbors(desc, db, resolve, reject) {
 
 function benchmarkNeighbors2(desc, db, resolve, reject) {
   console.log('INFO executing distinct neighbors of 1st and 2nd degree for %d elements', neighbors);
-  
+
   var nameP = 'profiles';
   var nameR = 'relations';
 

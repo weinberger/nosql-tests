@@ -13,6 +13,8 @@
        "dbURL": "plocal:@DATABASE@",
        "dbType": "graph",
        "wal": false,
+       "batchCommit": 10000,
+       "tx": false,
        "useLightweightEdges" : true,
        "dbAutoCreateProperties": true,
        "classes": [

@@ -1,85 +1,80 @@
 # NoSQL Performance Tests
 
-This repository contains the performance tests described in my [blog](https://www.arangodb.com/2015/06/multi-model-benchmark/). Please feel free to improve the various database test drivers. If you see any optimization I have missed, please issue a pull request.
+This repository contains the performance tests described in my [blog](https://www.arangodb.com/2018/02/nosql-performance-benchmark-2018-mongodb-postgresql-orientdb-neo4j-arangodb/). Please feel free to improve the various database test drivers. If you see any optimization I have missed, please issue a pull request.
 
 The files are structured as follows:
 
-`benchmark.js` contains the test driver and all the test cases. Currently, the following tests are implemented: `shortest`, `neighbors`, `neighbors2`, `singleRead`, `singleWrite`, and `aggregation`. Use `all` to run all tests inclusive warmup.
+`benchmark.js` contains the test driver and all the test cases. Currently, the following tests are implemented: `shortest`, `hardPath`, `neighbors`, `neighbors2`, `neighbors2data`, `singleRead`, `singleWrite` and `aggregation`. Use `all` to run all tests inclusive warmup.
 
-`arangodb`, `neo4j`, and `mongodb` are directories containing a single file `description.js`. This description file implements the database specific parts of the tests.
+`arangodb`, `arangodb_mmfiles`, `neo4j`, `mongodb`, `orientdb`, `postgresql_jsonb` and `postgresql_tabular` are directories containing the files `description.js`, `setup.sh` and `import.sh`. The description file implements the database specific parts of the tests. The setup and import files are used to set up the database and import the needed dataset for the test.
 
 `data` contains the test data used for the read and write tests and the start and end vertices for the shortest path.
 
 ## Installation
 
-```
-git clone https://github.com/weinberger/nosql-tests.git
-npm install .
-npm run data
-```
+### Client
 
-The last step will uncompress the test data file.
+We need additional services to install:
 
-## Example
+    $ curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
+    $ sudo apt-get install -y make build-essential nodejs
 
-```
-node benchmark arangodb -a 1.2.3.4 -t all
-```
+Clone the test repo and uncompress the test data files.
 
-runs all tests against an ArangoDB server running on host 1.2.3.4.
+    $ git clone https://github.com/weinberger/nosql-tests.git
+    $ cd nosql-tests
+    $ npm install
+    $ npm run data
 
-## Usage
+### Server
 
-```
-node benchmark -h
-Usage: benchmark <command> [options]
+The server also needs the nosql-tests repo checked out. The folder on client and server are required to have the same path!
 
-Commands:
-  arangodb  ArangoDB benchmark
-  mongodb   MongoDB benchmark
-  neo4j     neo4j benchmark
+    $ git clone https://github.com/weinberger/nosql-tests.git
 
-Options:
-  -t, --tests      tests to run separated by comma: shortest, neighbors,
-                   neighbors2, singleRead, singleWrite, aggregation
-                                                       [string] [default: "all"]
-  -s, --restrict   restrict to that many elements (0=no restriction)
-[default: 0]
-  -l, --neighbors  look at that many neighbors [default: 500]
-  -a, --address    server host                   [string] [default: "127.0.0.1"]
-  -h               Show help                                           [boolean]
-```
+For the complete setup with all databases we need several additional services:
 
-## Start Parameters
+    $ sudo apt-get install -y unzip default-jre binutils numactl collectd nodejs
+    
+To install all databases and import the test dataset:
 
-We have used the following parameters to start the databases.
+    $ ./setupAll.sh
 
-**ArangoDB**
+## Run single test
 
-```
-./bin/arangod  /mnt/data/arangodb/data-2.7 --server.threads 16 --scheduler.threads 8 --wal.sync-interval 1000  --config etc/relative/arangod.conf --javascript.v8-contexts 17
-```
+To run a single test against one database, we execute `benchmark.js` over node.
 
-Admin interface: http://107.178.210.238:8529/
+    & node benchmark.js -h
+    Usage: benchmark.js <command> [options]
 
+    Commands:
+      arangodb            ArangoDB benchmark
+      arangodb-mmfiles    ArangoDB benchmark
+      mongodb             MongoDB benchmark
+      neo4j               neo4j benchmark
+      orientdb            orientdb benchmark
+      postgresql          postgresql JSON benchmark
+      postgresql_tabular  postgresql tabular benchmark
 
-**MongoDB**
+    Options:
+      --version               Show version number                          [boolean]
+      -t, --tests             tests to run separated by comma: shortest, neighbors,
+                              neighbors2, neighbors2data, singleRead, singleWrite,
+                              aggregation, hardPath, singleWriteSync
+                                                           [string] [default: "all"]
+      -s, --restrict          restrict to that many elements (0=no restriction)
+                                                                        [default: 0]
+      -l, --neighbors         look at that many neighbors            [default: 1000]
+      --ld, --neighbors2data  look at that many neighbors2 with profiles
+                                                                      [default: 100]
+      -a, --address           server host            [string] [default: "127.0.0.1"]
+      -h                      Show help                                    [boolean]
 
+    copyright 2018 Claudius Weinberger
 
-```
-./bin/mongod --storageEngine wiredTiger --syncdelay 1 --dbpath /mnt/data/mongodb/wired2/
-```
+## Run complete test setup
 
-**OrientDB**
+To run the complete test against every database, we simply execute `runAll.sh`.
 
-```
-./bin/server.sh -Xmx28G -Dstorage.wal.maxSize=28000
-```
+    ./runAll.sh <server-ip> <num-runs>    
 
-**Neo4J**
-
-```
-./bin/neo4j start
-```
-
-Admin interface: http://107.178.210.238:7474/

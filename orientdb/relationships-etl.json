@@ -14,15 +14,15 @@
         "lookup": "Profile._key",
         "unresolvedLinkAction": "ERROR"
       }
-    },
+    }
   ],
   "loader": {
     "orientdb": {
        "dbURL": "plocal:@DATABASE@",
        "dbType": "graph",
        "wal": false,
-       "batchCommit": 1000,
-       "tx": true,
+       "batchCommit": 10000,
+       "tx": false,
        "txUseLog": false,
        "useLightweightEdges" : true,
        "classes": [

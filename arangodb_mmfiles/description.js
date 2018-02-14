@@ -1,6 +1,6 @@
 'use strict';
 
-var arangojs = require('arangojs');
+var Database = require('arangojs');
 var opts = {
   maxSockets: 25, 
   keepAlive: true, 
@@ -12,7 +12,7 @@ module.exports = {
   name: 'ArangoDB',
 
   startup: function (host, cb) {
-    var db = new arangojs.Database({
+    var db = new Database({
       url: 'http://' + host + ':8529',
       agent: new Agent(opts),
       fullDocument: false
@@ -24,19 +24,14 @@ module.exports = {
   warmup: function (db, cb) {
     module.exports.getCollection(db, 'profiles', function (err, coll) {
       if (err) return cb(err);
-
-      module.exports.aggregate(db, coll, function (err, result) {
+      coll.load(function (err, result) {
         if (err) return cb(err);
-
         console.log('INFO step 1/3 done');
-
         module.exports.getCollection(db, 'relations', function (err, coll2) {
           if (err) return cb(err);
-            db.route('_api/collection/relations/loadIndexesIntoMemory').put(function (err, result) {
+            coll2.load(function (err, result) {
             if (err) return cb(err);
-
             console.log('INFO step 2/3 done');
-
             var warmupIds = require('../data/warmup1000');
             var goal = 1000;
             var total = 0;
