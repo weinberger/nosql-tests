@@ -13,7 +13,7 @@ sudo bash -c "id -u postgres &>/dev/null || useradd postgres"
 if [ ! -d $DB ]
 then
   echo "Installing PostgreSQL"
-  wget https://get.enterprisedb.com/postgresql/postgresql-10.1-1-linux-x64-binaries.tar.gz -O $DOWNLOADS/postgresql.tar.gz
+  wget https://get.enterprisedb.com/postgresql/postgresql-9.6.17-1-linux-x64-binaries.tar.gz -O $DOWNLOADS/postgresql.tar.gz
   mkdir -p $TMPZIP/postgresql
   tar -zxvf $DOWNLOADS/postgresql.tar.gz -C $TMPZIP/postgresql --strip-components=1
   mv $TMPZIP/* $DB

@@ -19,7 +19,7 @@ mkdir -p $DOWNLOADS
 ./postgresql_tabular/setup.sh $BENCHMARK $DBFOLDER $TMP
 
 ## MongoDB
-./mongodb/setup.sh $BENCHMARK $DBFOLDER $TMP
+# ./mongodb/setup.sh $BENCHMARK $DBFOLDER $TMP
 
 ## ArangoDB
 ./arangodb/setup.sh $BENCHMARK $DBFOLDER $TMP
