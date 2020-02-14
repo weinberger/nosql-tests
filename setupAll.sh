@@ -15,11 +15,11 @@ mkdir -p $DOWNLOADS
 # ./neo4j/setup.sh $BENCHMARK $DBFOLDER $TMP
 
 ## Postgresql
-# ./postgresql_jsonb/setup.sh $BENCHMARK $DBFOLDER $TMP
-# ./postgresql_tabular/setup.sh $BENCHMARK $DBFOLDER $TMP
+./postgresql_jsonb/setup.sh $BENCHMARK $DBFOLDER $TMP
+./postgresql_tabular/setup.sh $BENCHMARK $DBFOLDER $TMP
 
 ## MongoDB
-./mongodb/setup.sh $BENCHMARK $DBFOLDER $TMP
+# ./mongodb/setup.sh $BENCHMARK $DBFOLDER $TMP
 
 ## ArangoDB
 # ./arangodb/setup.sh $BENCHMARK $DBFOLDER $TMP

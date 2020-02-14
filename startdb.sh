@@ -167,53 +167,53 @@ done  > $FN 2>&1 " > /dev/null 2>&1 &
 #     sleep 60
 # }
 
-# stop_Postgresql() {
-#   sudo -u postgres ${DBFOLDER}/postgresql/bin/pg_ctl stop -D ${DBFOLDER}/postgresql/pokec_json
-#   sudo -u postgres ${DBFOLDER}/postgresql/bin/pg_ctl stop -D ${DBFOLDER}/postgresql/pokec_tabular
-#   sudo service collectd stop
-# }
+stop_Postgresql() {
+  sudo -u postgres ${DBFOLDER}/postgresql/bin/pg_ctl stop -D ${DBFOLDER}/postgresql/pokec_json
+  sudo -u postgres ${DBFOLDER}/postgresql/bin/pg_ctl stop -D ${DBFOLDER}/postgresql/pokec_tabular
+  sudo service collectd stop
+}
 
-# start_Postgresql_tabular() {
-#     sudo service collectd start
-#     sudo -u postgres ${DBFOLDER}/postgresql/bin/pg_ctl start \
-#         -D ${DBFOLDER}/postgresql/pokec_tabular/ > /var/tmp/postgresql_tabular.log 2>&1 &
+start_Postgresql_tabular() {
+    sudo service collectd start
+    sudo -u postgres ${DBFOLDER}/postgresql/bin/pg_ctl start \
+        -D ${DBFOLDER}/postgresql/pokec_tabular/ > /var/tmp/postgresql_tabular.log 2>&1 &
 
-#     nohup bash -c "
-# while true; do
-#     sleep 1
-#     echo -n \"`date`; \"
-#     ps -C postgres -o 'comm cputime etimes rss pcpu' --no-headers | \
-#         awk '${AWKCMD}'
-# done  > $FN 2>&1 " > /dev/null 2>&1 &
-#     echo "$!" > "${WATCHER_PID}"
+    nohup bash -c "
+while true; do
+    sleep 1
+    echo -n \"`date`; \"
+    ps -C postgres -o 'comm cputime etimes rss pcpu' --no-headers | \
+        awk '${AWKCMD}'
+done  > $FN 2>&1 " > /dev/null 2>&1 &
+    echo "$!" > "${WATCHER_PID}"
 
-# }
+}
 
-# start_Postgresql_jsonb() {
-#     sudo service collectd start
-#     sudo -u postgres ${DBFOLDER}/postgresql/bin/pg_ctl start \
-#         -D ${DBFOLDER}/postgresql/pokec_json/ > /var/tmp/postgresql_json.log 2>&1 &
+start_Postgresql_jsonb() {
+    sudo service collectd start
+    sudo -u postgres ${DBFOLDER}/postgresql/bin/pg_ctl start \
+        -D ${DBFOLDER}/postgresql/pokec_json/ > /var/tmp/postgresql_json.log 2>&1 &
 
-#     nohup bash -c "
-# while true; do
-#     sleep 1
-#     echo -n \"`date`; \"
-#     ps -C postgres -o 'comm cputime etimes rss pcpu' --no-headers | \
-#         awk '${AWKCMD}'
-# done  > $FN 2>&1 " > /dev/null 2>&1 &
-#     echo "$!" > "${WATCHER_PID}"
+    nohup bash -c "
+while true; do
+    sleep 1
+    echo -n \"`date`; \"
+    ps -C postgres -o 'comm cputime etimes rss pcpu' --no-headers | \
+        awk '${AWKCMD}'
+done  > $FN 2>&1 " > /dev/null 2>&1 &
+    echo "$!" > "${WATCHER_PID}"
 
-# }
+}
 
 echo "================================================================================"
 echo "* stopping databases"
 echo "================================================================================"
 
 # stop_ArangoDB
-stop_MongoDB
+# stop_MongoDB
 # stop_OrientDB
 # stop_Neo4j
-# stop_Postgresql
+stop_Postgresql
 
 killPIDFile "${WATCHER_PID}"
 
@@ -228,9 +228,9 @@ case "$which" in
 # arangodb)
 #     start_ArangoDB
 #     ;;
-mongodb)
-    start_MongoDB
-    ;;
+# mongodb)
+#     start_MongoDB
+#     ;;
 # rethinkdb)
 #     start_RethinkDB
 #     ;;
@@ -240,12 +240,12 @@ mongodb)
 # neo4j)
 #     start_Neo4j
 #     ;;
-# postgresql_tabular)
-#     start_Postgresql_tabular
-#     ;;
-# postgresql_jsonb)
-#     start_Postgresql_jsonb
-#     ;;
+postgresql_tabular)
+    start_Postgresql_tabular
+    ;;
+postgresql_jsonb)
+    start_Postgresql_jsonb
+    ;;
 *)
     echo "unsupported database: [$which]"
     echo "I know: ArangoDB, ArangoDB_mmfiles, MongoDB, OrientDB, Neo4j, Postgresql_tabular, Postgresql_jsonb"

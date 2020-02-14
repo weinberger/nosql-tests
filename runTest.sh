@@ -44,9 +44,9 @@ done
 case $DB in
     # arangodb*) MATCH_PS="arangod;" ;;
     # neo4j*)    MATCH_PS="java;" ;;
-    mongodb*)  MATCH_PS="mongod;" ;;
+    # mongodb*)  MATCH_PS="mongod;" ;;
     # orientdb*) MATCH_PS="java;";;
-    # postgresql*) MATCH_PS="postgres;";;
+    postgresql*) MATCH_PS="postgres;";;
     *) echo "unknown database $DB"; exit 1
 esac
 
